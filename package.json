@@ -1,0 +1,20 @@
+{
+  "name": "fb-proposal-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FB Construction branded proposal generator (docx + PDF)",
+  "main": "api/generate.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "extract-logo": "node scripts/extract-logo.js"
+  },
+  "dependencies": {
+    "docx": "8.5.0",
+    "@supabase/supabase-js": "^2.112.0",
+    "puppeteer-core": "^25.5.0",
+    "@sparticuz/chromium": "^149.0.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^25.5.0"
+  }
+}
