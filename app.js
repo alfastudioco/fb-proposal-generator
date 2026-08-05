@@ -36,6 +36,67 @@
   // Preview/Generate because the field looked filled in but wasn't.
   el('proposalNum').value = String(Date.now()).slice(-4);
 
+  // ---- Snippet library (window.SNIPPET_LIBRARY, from snippets.js) -----------
+
+  const SNIPPETS = window.SNIPPET_LIBRARY || { categories: [], notes: [], clientSuppliedCommon: [] };
+
+  function populateSnippetSelects() {
+    // Populate the <template>'s select once, before any cloning -- every
+    // future roomCardTemplate.content.cloneNode(true) then carries these
+    // <option>s along automatically.
+    const templateSelect = roomCardTemplate.content.querySelector('.room-snippet-select');
+    for (const category of SNIPPETS.categories) {
+      const opt = document.createElement('option');
+      opt.value = category.id;
+      opt.textContent = category.label;
+      templateSelect.appendChild(opt);
+    }
+
+    const notesSelect = el('notesSnippetSelect');
+    for (const note of SNIPPETS.notes) {
+      const opt = document.createElement('option');
+      opt.value = note.text;
+      opt.textContent = note.label;
+      notesSelect.appendChild(opt);
+    }
+
+    const clientSuppliedSelect = el('clientSuppliedSnippetSelect');
+    for (const text of SNIPPETS.clientSuppliedCommon) {
+      const opt = document.createElement('option');
+      opt.value = text;
+      opt.textContent = text.length > 60 ? `${text.slice(0, 57)}...` : text;
+      clientSuppliedSelect.appendChild(opt);
+    }
+  }
+
+  // Splits a category's flat {type, text} list into left/right columns by
+  // tradeLabel group (each tradeLabel + the bullets under it is one group),
+  // alternating groups left/right -- mirrors how the real proposals pair a
+  // "Demo & Structural"-style block against an "Installation & Finishes"
+  // block side by side.
+  function splitSnippetItems(items) {
+    const groups = [];
+    for (const item of items) {
+      if (item.type === 'tradeLabel' || groups.length === 0) groups.push([]);
+      groups[groups.length - 1].push(item);
+    }
+    const left = [];
+    const right = [];
+    groups.forEach((group, i) => (i % 2 === 0 ? left : right).push(...group));
+    return { left, right };
+  }
+
+  function insertSnippetIntoRoom(sectionId, categoryId) {
+    const category = SNIPPETS.categories.find((c) => c.id === categoryId);
+    if (!category) return;
+    const section = state.sections.find((s) => s.id === sectionId);
+    const { left, right } = splitSnippetItems(category.items);
+    section.leftScope.push(...left.map((it) => ({ ...it })));
+    section.rightScope.push(...right.map((it) => ({ ...it })));
+    if (!section.title) section.title = category.label;
+    renderRooms();
+  }
+
   // ---- Rooms & Scope --------------------------------------------------------
 
   function addRoom() {
@@ -80,6 +141,11 @@
       });
 
       card.querySelector('.room-remove').addEventListener('click', () => removeRoom(section.id));
+
+      const snippetSelect = card.querySelector('.room-snippet-select');
+      snippetSelect.addEventListener('change', () => {
+        if (snippetSelect.value) insertSnippetIntoRoom(section.id, snippetSelect.value);
+      });
 
       for (const side of ['left', 'right']) {
         const columnEl = card.querySelector(`.scope-items[data-side="${side}"]`);
@@ -133,6 +199,20 @@
   }
 
   el('addClientSuppliedBtn').addEventListener('click', addClientSuppliedItem);
+
+  el('clientSuppliedSnippetSelect').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    state.clientSupplied.push(e.target.value);
+    renderClientSupplied();
+    e.target.value = '';
+  });
+
+  el('notesSnippetSelect').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    const notesEl = el('notes');
+    notesEl.value = notesEl.value.trim() ? `${notesEl.value.trim()}\n${e.target.value}` : e.target.value;
+    e.target.value = '';
+  });
 
   // ---- Totals ---------------------------------------------------------------
 
@@ -249,6 +329,7 @@
 
   document.addEventListener('input', recalcTotals);
 
+  populateSnippetSelects();
   renderClientSupplied();
   recalcTotals();
   previewProposal();

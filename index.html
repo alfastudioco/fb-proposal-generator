@@ -40,13 +40,23 @@
     </section>
 
     <section class="panel">
-      <h2>Client-Supplied Items</h2>
+      <div class="panel-header">
+        <h2>Client-Supplied Items</h2>
+        <select class="snippet-select" id="clientSuppliedSnippetSelect">
+          <option value="">+ Common item…</option>
+        </select>
+      </div>
       <div id="clientSuppliedList"></div>
       <button type="button" class="btn-add" id="addClientSuppliedBtn">+ Add Item</button>
     </section>
 
     <section class="panel">
-      <h2>Additional Notes &amp; Exclusions</h2>
+      <div class="panel-header">
+        <h2>Additional Notes &amp; Exclusions</h2>
+        <select class="snippet-select" id="notesSnippetSelect">
+          <option value="">+ Common note…</option>
+        </select>
+      </div>
       <textarea id="notes" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
     </section>
 
@@ -82,6 +92,9 @@
       <button type="button" class="btn-remove room-remove" title="Remove room">×</button>
     </div>
     <label class="room-price-label">Price<input type="number" class="room-price" placeholder="0"></label>
+    <select class="snippet-select room-snippet-select">
+      <option value="">+ Insert common scope…</option>
+    </select>
     <div class="scope-columns">
       <div class="scope-column" data-side="left">
         <div class="scope-column-header">
@@ -121,6 +134,7 @@
   </div>
 </template>
 
+<script src="/snippets.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

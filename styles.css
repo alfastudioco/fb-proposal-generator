@@ -80,6 +80,26 @@ body {
 }
 .panel-header h2 { margin: 0; }
 
+.snippet-select {
+  font-size: 10px;
+  color: var(--navy);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: var(--navy-lite);
+  max-width: 160px;
+}
+.room-snippet-select {
+  width: 100%;
+  margin: 4px 0 10px;
+  font-size: 11px;
+  color: var(--navy);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  background: var(--navy-lite);
+}
+
 label {
   display: block;
   font-size: 11px;
