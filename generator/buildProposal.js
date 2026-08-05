@@ -41,8 +41,19 @@ async function buildProposal(proposalData) {
     }),
   );
 
+  const isSingleSection = data.sections.length === 1;
+
   for (const section of data.sections) {
-    children.push(buildSectionBanner({ num: section.num, title: section.title, price: section.price }));
+    children.push(
+      buildSectionBanner({
+        num: section.num,
+        title: section.title,
+        subtitle: section.subtitle,
+        price: section.price,
+        priceLabel: section.priceLabel,
+        hero: isSingleSection,
+      }),
+    );
     children.push(spacer(120));
     children.push(buildTwoColumnScope({ leftScope: section.leftScope || [], rightScope: section.rightScope || [] }));
     children.push(spacer(240));

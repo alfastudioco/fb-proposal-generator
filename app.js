@@ -101,7 +101,7 @@
 
   function addRoom() {
     const id = nextSectionId();
-    state.sections.push({ id, title: '', price: 0, leftScope: [], rightScope: [] });
+    state.sections.push({ id, title: '', subtitle: '', price: 0, priceLabel: '', leftScope: [], rightScope: [] });
     renderRooms();
   }
 
@@ -133,12 +133,20 @@
       titleInput.value = section.title;
       titleInput.addEventListener('input', () => { section.title = titleInput.value; });
 
+      const subtitleInput = card.querySelector('.room-subtitle');
+      subtitleInput.value = section.subtitle || '';
+      subtitleInput.addEventListener('input', () => { section.subtitle = subtitleInput.value; });
+
       const priceInput = card.querySelector('.room-price');
       priceInput.value = section.price || '';
       priceInput.addEventListener('input', () => {
         section.price = Number(priceInput.value) || 0;
         recalcTotals();
       });
+
+      const priceLabelInput = card.querySelector('.room-price-label-input');
+      priceLabelInput.value = section.priceLabel || '';
+      priceLabelInput.addEventListener('input', () => { section.priceLabel = priceLabelInput.value; });
 
       card.querySelector('.room-remove').addEventListener('click', () => removeRoom(section.id));
 
@@ -240,7 +248,9 @@
       sections: state.sections.map((s, i) => ({
         num: i + 1,
         title: s.title,
+        subtitle: s.subtitle ? s.subtitle.trim() : undefined,
         price: Number(s.price) || 0,
+        priceLabel: s.priceLabel ? s.priceLabel.trim() : undefined,
         leftScope: s.leftScope.filter((it) => it.text.trim()),
         rightScope: s.rightScope.filter((it) => it.text.trim()),
       })),

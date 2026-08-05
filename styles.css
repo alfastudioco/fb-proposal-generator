@@ -178,10 +178,21 @@ button {
   border-radius: 4px;
   font-size: 13px;
 }
-.room-price-label {
+.room-subtitle {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--gray);
   margin-bottom: 8px;
 }
-.room-price { width: 140px; }
+.room-price-label {
+  margin-bottom: 8px;
+  flex: 1;
+}
+.room-price { width: 100%; }
+.room-price-label-input { width: 100%; text-transform: uppercase; }
 
 .scope-columns {
   display: flex;

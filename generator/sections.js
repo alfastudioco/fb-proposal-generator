@@ -115,7 +115,28 @@ function buildMetaBar({ client, proposalNum, date }) {
 
 // ---- 4.3 Section banner --------------------------------------------------
 
-function buildSectionBanner({ num, title, price }) {
+function titleCellChildren(title, subtitle) {
+  const children = [
+    new Paragraph({
+      spacing: subtitle ? { after: spacingPt(2) } : undefined,
+      children: [
+        new TextRun({ text: title.toUpperCase(), font: FONT, size: pt(18), bold: true, color: 'FFFFFF', characterSpacing: 10 }),
+      ],
+    }),
+  ];
+  if (subtitle) {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: subtitle, font: FONT, size: pt(9.5), color: 'BFD4EE' })],
+      }),
+    );
+  }
+  return children;
+}
+
+// Multi-section proposals (spec §4.3): numbered orange badge, navy title
+// (+ optional subtitle), light-navy price cell with orange label.
+function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
   const [wBadge, wTitle, wPrice] = COL_WIDTHS.banner;
 
   const badgeCell = new TableCell({
@@ -139,13 +160,7 @@ function buildSectionBanner({ num, title, price }) {
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 120, bottom: 120, left: 220, right: 220 },
     borders: cellBorders(),
-    children: [
-      new Paragraph({
-        children: [
-          new TextRun({ text: title.toUpperCase(), font: FONT, size: pt(18), bold: true, color: 'FFFFFF', characterSpacing: 10 }),
-        ],
-      }),
-    ],
+    children: titleCellChildren(title, subtitle),
   });
 
   const priceCell = new TableCell({
@@ -158,7 +173,7 @@ function buildSectionBanner({ num, title, price }) {
       new Paragraph({
         alignment: AlignmentType.RIGHT,
         spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: 'INVESTMENT', font: FONT, size: pt(8), bold: true, color: ORANGE, characterSpacing: 15 })],
+        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(8), bold: true, color: ORANGE, characterSpacing: 15 })],
       }),
       new Paragraph({
         alignment: AlignmentType.RIGHT,
@@ -172,6 +187,53 @@ function buildSectionBanner({ num, title, price }) {
     columnWidths: COL_WIDTHS.banner,
     rows: [new TableRow({ children: [badgeCell, titleCell, priceCell] })],
   });
+}
+
+// Single-section proposals (confirmed against real reference proposals --
+// Mike Nash, Michelle Finch, Meghan Hamann): no numbered badge, orange
+// price cell instead of light-navy.
+function buildHeroBanner({ title, subtitle, price, priceLabel }) {
+  const [wTitle, wPrice] = COL_WIDTHS.heroBanner;
+
+  const titleCell = new TableCell({
+    width: { size: wTitle, type: WidthType.DXA },
+    shading: shade(NAVY_DARK),
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 120, bottom: 120, left: 220, right: 220 },
+    borders: cellBorders(),
+    children: titleCellChildren(title, subtitle),
+  });
+
+  const priceCell = new TableCell({
+    width: { size: wPrice, type: WidthType.DXA },
+    shading: shade(ORANGE),
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 120, bottom: 120, left: 220, right: 220 },
+    borders: cellBorders(),
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        spacing: { after: spacingPt(2) },
+        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(8), bold: true, color: 'FFFFFF', characterSpacing: 15 })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [new TextRun({ text: formatCurrency(price), font: FONT, size: pt(14), bold: true, color: 'FFFFFF' })],
+      }),
+    ],
+  });
+
+  return new Table({
+    width: { size: wTitle + wPrice, type: WidthType.DXA },
+    columnWidths: COL_WIDTHS.heroBanner,
+    rows: [new TableRow({ children: [titleCell, priceCell] })],
+  });
+}
+
+function buildSectionBanner({ num, title, subtitle, price, priceLabel, hero }) {
+  return hero
+    ? buildHeroBanner({ title, subtitle, price, priceLabel })
+    : buildStandardBanner({ num, title, subtitle, price, priceLabel });
 }
 
 // ---- 4.4 Two-column scope -------------------------------------------------

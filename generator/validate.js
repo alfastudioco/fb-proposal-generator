@@ -40,6 +40,12 @@ function validateProposalData(body) {
       if (typeof section.num !== 'number') errors.push(`sections[${i}].num must be a number`);
       if (!isNonEmptyString(section.title)) errors.push(`sections[${i}].title is required`);
       if (typeof section.price !== 'number') errors.push(`sections[${i}].price must be a number`);
+      if (section.subtitle !== undefined && typeof section.subtitle !== 'string') {
+        errors.push(`sections[${i}].subtitle must be a string if provided`);
+      }
+      if (section.priceLabel !== undefined && typeof section.priceLabel !== 'string') {
+        errors.push(`sections[${i}].priceLabel must be a string if provided`);
+      }
       validateScopeItems(section.leftScope || [], `sections[${i}].leftScope`, errors);
       validateScopeItems(section.rightScope || [], `sections[${i}].rightScope`, errors);
     });

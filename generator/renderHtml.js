@@ -54,18 +54,39 @@ function renderScopeColumn(items = []) {
     .join('');
 }
 
-function renderSection(section) {
-  return `
+function renderSection(section, isHero) {
+  const priceLabel = (section.priceLabel || 'INVESTMENT').toUpperCase();
+  const subtitleHtml = section.subtitle
+    ? `<div class="banner-subtitle">${esc(section.subtitle)}</div>`
+    : '';
+
+  const bannerHtml = isHero
+    ? `
+    <table class="banner banner-hero">
+      <tr>
+        <td class="banner-title hero">${esc((section.title || '').toUpperCase())}${subtitleHtml}</td>
+        <td class="banner-price hero">
+          <div class="investment-label hero">${esc(priceLabel)}</div>
+          <div class="investment-amount hero">${esc(formatCurrency(section.price))}</div>
+        </td>
+      </tr>
+    </table>
+  `
+    : `
     <table class="banner">
       <tr>
         <td class="badge">${esc(String(section.num).padStart(2, '0'))}</td>
-        <td class="banner-title">${esc((section.title || '').toUpperCase())}</td>
+        <td class="banner-title">${esc((section.title || '').toUpperCase())}${subtitleHtml}</td>
         <td class="banner-price">
-          <div class="investment-label">INVESTMENT</div>
+          <div class="investment-label">${esc(priceLabel)}</div>
           <div class="investment-amount">${esc(formatCurrency(section.price))}</div>
         </td>
       </tr>
     </table>
+  `;
+
+  return `
+    ${bannerHtml}
     <table class="scope">
       <tr>
         <td class="scope-col">${renderScopeColumn(section.leftScope)}</td>
@@ -132,9 +153,15 @@ function renderProposalHtml(data) {
   .banner { margin-top: 6px; }
   .badge { background: ${ORANGE}; color: #fff; font-weight: bold; font-size: 16pt; text-align: center; width: 60px; padding: 10px; }
   .banner-title { background: ${NAVY_DARK}; color: #fff; font-weight: bold; font-size: 18pt; letter-spacing: 0.5px; padding: 10px 16px; }
+  .banner-subtitle { color: #bfd4ee; font-weight: normal; font-size: 9.5pt; letter-spacing: normal; margin-top: 2px; }
   .banner-price { background: ${NAVY_LITE}; text-align: right; padding: 10px 16px; width: 24%; }
   .investment-label { color: ${ORANGE}; font-size: 8pt; font-weight: bold; letter-spacing: 1px; }
   .investment-amount { color: ${NAVY}; font-size: 14pt; font-weight: bold; }
+  /* Single-section "hero" banner variant (spec confirmed against real
+     reference proposals): no numbered badge, orange price cell. */
+  .banner-price.hero { background: ${ORANGE}; }
+  .investment-label.hero { color: #fff; }
+  .investment-amount.hero { color: #fff; }
 
   .scope { margin: 8px 0 16px; }
   .scope-col { width: 49%; vertical-align: top; padding-right: 12px; }
@@ -205,7 +232,7 @@ function renderProposalHtml(data) {
   </table>
   <hr class="meta-rule">
 
-  ${sections.map(renderSection).join('')}
+  ${sections.map((s) => renderSection(s, sections.length === 1)).join('')}
 
   ${renderClientSupplied(clientSupplied)}
   ${renderNotes(notes)}

@@ -13,6 +13,18 @@
 window.SNIPPET_LIBRARY = {
   categories: [
     {
+      id: 'engineering',
+      label: 'Engineering / Structural Investigation',
+      items: [
+        { type: 'tradeLabel', text: 'Engineering & Investigation' },
+        { type: 'bullet', text: 'Full structural engineering investigation of existing conditions' },
+        { type: 'bullet', text: 'X-ray of floor slab to identify existing utilities and structure (if applicable)' },
+        { type: 'tradeLabel', text: 'Plan & Approval' },
+        { type: 'bullet', text: 'Engineering report and plan — required to confirm approach for plumbing relocation and/or concrete demolition' },
+        { type: 'bullet', text: 'All work to proceed per approved engineering plan' },
+      ],
+    },
+    {
       id: 'kitchen',
       label: 'Kitchen Remodel',
       items: [
@@ -21,18 +33,23 @@ window.SNIPPET_LIBRARY = {
         { type: 'bullet', text: 'Demo existing flooring — remove to subfloor and put new durrock to prepare for tile installation' },
         { type: 'bullet', text: 'Demo and disconnect plumbing as needed to remove sink and faucet' },
         { type: 'bullet', text: 'Demo electrical and relocate can lights and outlets as needed based on new layout' },
+        { type: 'tradeLabel', text: 'Framing & Structure' },
+        { type: 'bullet', text: 'Create larger opening between kitchen, dining, and living room' },
+        { type: 'bullet', text: 'Fabricate and install new steel beam for larger opening (if required)' },
         { type: 'tradeLabel', text: 'Plumbing & Electrical' },
         { type: 'bullet', text: 'Provide new plumbing lines and drains to connect new sink and faucet in new location' },
         { type: 'bullet', text: 'Provide electrical for new stove' },
         { type: 'bullet', text: 'Install hood and exhaust vent out to exterior (if over 600 CFM exhaust, a fresh air intake is required)' },
         { type: 'bullet', text: 'Provide electrical for under-cabinet lights' },
+        { type: 'tradeLabel', text: 'Flooring & Trim' },
+        { type: 'bullet', text: 'Install new hardwood flooring — includes sand, stain, and varnish (labor and material)' },
+        { type: 'bullet', text: 'Supply and install new baseboards' },
         { type: 'tradeLabel', text: 'Installation & Finishes' },
-        { type: 'bullet', text: 'Install and supply new baseboards' },
         { type: 'bullet', text: 'Install customer-supplied cabinets, appliances, hardware, and backsplash tile' },
         { type: 'bullet', text: 'Sink supplied by owner, installed by us' },
         { type: 'bullet', text: 'Counter top installed and charged by vendor (can also do full high backsplash)' },
         { type: 'bullet', text: 'Repair drywall, tape, patch, and prepare for paint' },
-        { type: 'bullet', text: 'Paint kitchen ceiling and walls' },
+        { type: 'bullet', text: 'Paint — two coats Benjamin Moore' },
       ],
     },
     {
@@ -53,6 +70,28 @@ window.SNIPPET_LIBRARY = {
         { type: 'bullet', text: 'Install new customer-supplied tile, vanity, faucet, toilet, exhaust fan, mirror, and lights' },
         { type: 'bullet', text: 'Install new exhaust fan, vented to exterior' },
         { type: 'bullet', text: 'Drywall, tape, patch, and paint' },
+      ],
+    },
+    {
+      id: 'bathroom-luxury',
+      label: 'Bathroom Remodel — Luxury (Heated Floor)',
+      items: [
+        { type: 'tradeLabel', text: 'Demo & Structural' },
+        { type: 'bullet', text: 'Demo existing bathroom including shower, all floor tile, vanity, and exhaust fan' },
+        { type: 'tradeLabel', text: 'Plumbing & Electrical' },
+        { type: 'bullet', text: 'All plumbing for disconnection & reconnection of fixtures and shower faucets — rain head, handheld, and standard shower faucet configuration' },
+        { type: 'bullet', text: 'Provide new plumbing to create double vanity' },
+        { type: 'bullet', text: 'All electrical for shower lighting, heated flooring system, and vanity lights' },
+        { type: 'bullet', text: 'Install Ultra Quiet exhaust fan' },
+        { type: 'tradeLabel', text: 'Shower & Tile Prep' },
+        { type: 'bullet', text: 'Install heated flooring — membrane, wire & thermostat' },
+        { type: 'bullet', text: 'Install durrock on floor and shower walls; full waterproofing' },
+        { type: 'bullet', text: 'Build shower base with rubber underlayment; prep for tile' },
+        { type: 'tradeLabel', text: 'Installation & Finishes' },
+        { type: 'bullet', text: 'Install owner-supplied tile on floor, shower base, walls & ceiling' },
+        { type: 'bullet', text: 'Custom shower door by vendor (full-height glass door pricing around $2,700)' },
+        { type: 'bullet', text: 'Install vanity and toilet' },
+        { type: 'bullet', text: 'Drywall, tape, patch, and paint bathroom' },
       ],
     },
     {
@@ -106,7 +145,7 @@ window.SNIPPET_LIBRARY = {
     },
     {
       id: 'flooring',
-      label: 'Flooring',
+      label: 'Flooring — New Install',
       items: [
         { type: 'tradeLabel', text: 'Demo & Prep' },
         { type: 'bullet', text: 'Remove existing flooring and baseboard' },
@@ -114,6 +153,28 @@ window.SNIPPET_LIBRARY = {
         { type: 'tradeLabel', text: 'Installation & Finishes' },
         { type: 'bullet', text: 'Install new hardwood flooring (includes sand, stain, and varnish — color select), labor and material included' },
         { type: 'bullet', text: 'Install new baseboard and shoe base' },
+      ],
+    },
+    {
+      id: 'flooring-basement',
+      label: 'Basement Flooring — Remove & Replace',
+      items: [
+        { type: 'tradeLabel', text: 'Scope of Work' },
+        { type: 'bullet', text: 'Remove all existing flooring throughout basement' },
+        { type: 'bullet', text: 'Full debris and garbage haul-away included' },
+        { type: 'tradeLabel', text: 'Client-Supplied Items' },
+        { type: 'bullet', text: 'Free-floating vinyl flooring — supplied by owner, installed by FB Construction' },
+      ],
+    },
+    {
+      id: 'flooring-refinish',
+      label: 'Hardwood Flooring — Refinish',
+      items: [
+        { type: 'tradeLabel', text: 'Refinish' },
+        { type: 'bullet', text: 'Fill all gaps in existing hardwood prior to sanding' },
+        { type: 'bullet', text: 'Sand entire floor surface' },
+        { type: 'bullet', text: 'Stain per client color selection' },
+        { type: 'bullet', text: 'Apply finish varnish' },
       ],
     },
     {
@@ -200,6 +261,42 @@ window.SNIPPET_LIBRARY = {
         { type: 'bullet', text: 'Includes all labor, material, and installation' },
       ],
     },
+    {
+      id: 'cabinet-allowance',
+      label: 'Cabinet Allowance (Ballpark Estimate)',
+      items: [
+        { type: 'tradeLabel', text: 'Cabinet Allowance' },
+        { type: 'bullet', text: 'Ballpark estimate based on current layout discussion' },
+        { type: 'bullet', text: 'Final cost will be confirmed once cabinet selection and layout are finalized — pricing subject to revision' },
+      ],
+    },
+    {
+      id: 'mudroom-built-in',
+      label: 'Mudroom Built-In',
+      items: [
+        { type: 'tradeLabel', text: 'Demo & Prep' },
+        { type: 'bullet', text: 'Demo existing closet — debris and haul-away included' },
+        { type: 'bullet', text: 'Repair drywall as needed following demo' },
+        { type: 'tradeLabel', text: 'Installation & Finishes' },
+        { type: 'bullet', text: 'Supply and install new bench with built-in shoe storage' },
+        { type: 'bullet', text: 'Supply and install upper cabinets and pantry cabinet' },
+        { type: 'bullet', text: 'Install hooks' },
+        { type: 'bullet', text: 'Paint — ceiling, walls, and baseboards' },
+      ],
+    },
+    {
+      id: 'exterior-renovation',
+      label: 'Exterior Renovation (Power Wash & Paint)',
+      items: [
+        { type: 'tradeLabel', text: 'Prep' },
+        { type: 'bullet', text: 'Power wash entire exterior of home — siding, trim, fascia, and all surfaces' },
+        { type: 'bullet', text: 'Remove and replace all damaged or deteriorated boards' },
+        { type: 'bullet', text: 'Full caulk of all seams, joints, windows, doors, and trim throughout exterior' },
+        { type: 'tradeLabel', text: 'Paint' },
+        { type: 'bullet', text: 'Paint entire exterior per client color selection — 2 coats applied to all surfaces' },
+        { type: 'bullet', text: 'Includes all prep, priming of replaced boards, and final cleanup' },
+      ],
+    },
   ],
 
   // Standard notes/exclusions language, reused near-verbatim across many
@@ -227,7 +324,23 @@ window.SNIPPET_LIBRARY = {
     },
     {
       label: 'Client-supplied materials on site',
-      text: 'All client-supplied materials should be on site prior to scheduled installation.',
+      text: 'All client-supplied fixtures and materials should be on-site prior to scheduled installation dates to avoid delays.',
+    },
+    {
+      label: 'Countertop pending stone selection',
+      text: 'Countertop pricing is pending final stone selection and will be confirmed as an addendum.',
+    },
+    {
+      label: 'Countertop by preferred vendor',
+      text: 'Countertop fabrication and installation to be contracted and invoiced separately through preferred vendor; full-height stone backsplash available upon request.',
+    },
+    {
+      label: 'Permit fees — village process',
+      text: 'Permit fees and drawings not included — FB Construction will manage the permit process as required by the village.',
+    },
+    {
+      label: 'Structural assessment pending',
+      text: 'Scope is subject to structural assessment — final scope to be confirmed once wall is opened.',
     },
   ],
 
@@ -239,5 +352,11 @@ window.SNIPPET_LIBRARY = {
     'All rough-in and trim fixtures for plumbing',
     'Skylights, patio doors, and windows',
     'Shower door',
+    'Kitchen cabinets & hardware',
+    'All appliances',
+    'Backsplash tile & setting materials',
+    'Kitchen sink',
+    'Vanity light fixtures',
+    'Medicine cabinet or mirror',
   ],
 };

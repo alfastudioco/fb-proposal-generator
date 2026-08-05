@@ -36,6 +36,10 @@ const FULL_WIDTH_DXA = 10080;
 const COL_WIDTHS = {
   twoColSplit: [4940, 100, 4940],
   banner: [720, 6480, 2880],
+  // Single-section "hero" banner variant (spec confirmed against real
+  // reference proposals: Mike Nash, Michelle Finch, Meghan Hamann) --
+  // no numbered badge, title takes the badge's width back.
+  heroBanner: [7200, 2880],
   metaBar: [2520, 2520, 2520, 2520],
   investment: [5040, 5040],
   contactFooter: [3360, 3360, 3360],
