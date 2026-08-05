@@ -31,6 +31,11 @@
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
+  // Real starting value, not just a placeholder -- an empty-but-suggestive
+  // placeholder here previously caused "proposalNum is required" errors on
+  // Preview/Generate because the field looked filled in but wasn't.
+  el('proposalNum').value = String(Date.now()).slice(-4);
+
   // ---- Rooms & Scope --------------------------------------------------------
 
   function addRoom() {
