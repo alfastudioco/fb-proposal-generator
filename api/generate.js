@@ -11,14 +11,15 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // local testing; production always uses puppeteer-core + @sparticuz/chromium.
 async function launchBrowser() {
   if (process.env.LOCAL_CHROMIUM === 'true') {
-    const puppeteer = require('puppeteer');
+    const { default: puppeteer } = await import('puppeteer');
     return puppeteer.launch();
   }
-  // @sparticuz/chromium's published build is ESM-only, so it must be
-  // dynamically imported even from this CommonJS file (a plain require()
-  // fails at deploy time with "require() of ES Module ... not supported").
+  // @sparticuz/chromium and puppeteer-core are both published as ESM-only,
+  // so both must be dynamically imported even from this CommonJS file (a
+  // plain require() fails at deploy time with "require() of ES Module ...
+  // not supported").
   const { default: chromium } = await import('@sparticuz/chromium');
-  const puppeteer = require('puppeteer-core');
+  const { default: puppeteer } = await import('puppeteer-core');
   return puppeteer.launch({
     args: chromium.args,
     executablePath: await chromium.executablePath(),
