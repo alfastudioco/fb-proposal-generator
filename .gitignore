@@ -6,3 +6,6 @@ node_modules/
 Thumbs.db
 .DS_Store
 scratch/
+
+.vercel
+.env*

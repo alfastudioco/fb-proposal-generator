@@ -14,7 +14,10 @@ async function launchBrowser() {
     const puppeteer = require('puppeteer');
     return puppeteer.launch();
   }
-  const chromium = require('@sparticuz/chromium');
+  // @sparticuz/chromium's published build is ESM-only, so it must be
+  // dynamically imported even from this CommonJS file (a plain require()
+  // fails at deploy time with "require() of ES Module ... not supported").
+  const { default: chromium } = await import('@sparticuz/chromium');
   const puppeteer = require('puppeteer-core');
   return puppeteer.launch({
     args: chromium.args,
