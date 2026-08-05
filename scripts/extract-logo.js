@@ -1,11 +1,18 @@
 // One-time utility: pulls the FB Construction logo out of the sibling
 // deckbuilder project (embedded there as a base64 JPEG) and saves it as a
-// real .jpg file for this project's docx/PDF generators to embed.
+// PNG for this project's docx/PDF generators to embed.
+//
+// PNG, not JPEG: the installed `docx` library (8.5.0) hardcodes a `.png`
+// extension for every embedded image regardless of the actual bytes given
+// to ImageRun (see generator/buildProposal.js). Handing it real JPEG bytes
+// under a .png name produces a file Word flags as corrupted, so the source
+// image is re-encoded to genuine PNG here, once, ahead of time.
 //
 // Usage: node scripts/extract-logo.js [pathToDeckbuilderIndexHtml] [--force]
 
 const fs = require('fs');
 const path = require('path');
+const { Jimp } = require('jimp');
 
 const forceOverwrite = process.argv.includes('--force');
 const sourceArg = process.argv.find((a, i) => i >= 2 && !a.startsWith('--'));
@@ -13,9 +20,9 @@ const sourcePath = sourceArg
   ? path.resolve(sourceArg)
   : path.resolve(__dirname, '..', '..', 'deckbuilder', 'index.html');
 
-const outputPath = path.resolve(__dirname, '..', 'assets', 'logo_rgb.jpg');
+const outputPath = path.resolve(__dirname, '..', 'assets', 'logo_rgb.png');
 
-function main() {
+async function main() {
   if (!fs.existsSync(sourcePath)) {
     console.error(`Source file not found: ${sourcePath}`);
     process.exit(1);
@@ -44,10 +51,16 @@ function main() {
     process.exit(1);
   }
 
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, buffer);
+  const image = await Jimp.read(buffer);
+  const pngBuffer = await image.getBuffer('image/png');
 
-  console.log(`Wrote ${outputPath} (${buffer.length} bytes)`);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, pngBuffer);
+
+  console.log(`Wrote ${outputPath} (${pngBuffer.length} bytes, ${image.width}x${image.height})`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -9,12 +9,13 @@
     "extract-logo": "node scripts/extract-logo.js"
   },
   "dependencies": {
-    "docx": "8.5.0",
+    "@sparticuz/chromium": "^149.0.0",
     "@supabase/supabase-js": "^2.112.0",
-    "puppeteer-core": "^25.5.0",
-    "@sparticuz/chromium": "^149.0.0"
+    "docx": "8.5.0",
+    "puppeteer-core": "^25.5.0"
   },
   "devDependencies": {
+    "jimp": "^1.6.1",
     "puppeteer": "^25.5.0"
   }
 }
