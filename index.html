@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FB Construction — Proposal Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>FB Construction</h1>
+      <p>Proposal Generator</p>
+    </div>
+
+    <section class="panel">
+      <h2>Client Information</h2>
+      <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
+      <label>Proposal Number<input type="text" id="proposalNum" placeholder="1901"></label>
+      <label>Property Address<input type="text" id="propertyAddress" placeholder="123 Main St, City, IL"></label>
+      <div class="row">
+        <label>Phone<input type="text" id="clientPhone" placeholder="847-555-0100"></label>
+        <label>Email<input type="text" id="clientEmail" placeholder="client@example.com"></label>
+      </div>
+      <label>Date<input type="text" id="proposalDate"></label>
+      <label>Timeline<input type="text" id="timeline" placeholder="6–8 Weeks"></label>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Rooms &amp; Scope</h2>
+        <button type="button" class="btn-add" id="addRoomBtn">+ Add Room</button>
+      </div>
+      <div id="roomsList"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Client-Supplied Items</h2>
+      <div id="clientSuppliedList"></div>
+      <button type="button" class="btn-add" id="addClientSuppliedBtn">+ Add Item</button>
+    </section>
+
+    <section class="panel">
+      <h2>Additional Notes &amp; Exclusions</h2>
+      <textarea id="notes" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
+    </section>
+
+    <section class="panel">
+      <h2>Investment Summary</h2>
+      <label>Total Label (shown under the total)<input type="text" id="totalLabel" placeholder="Kitchen • Bath • Flooring"></label>
+      <label>Investment Note (optional, italic)<input type="text" id="investmentNote" placeholder="Cabinet pricing subject to finalization"></label>
+    </section>
+
+    <div class="totals-bar">
+      <span class="totals-label">Total Project Investment</span>
+      <span class="totals-amount" id="totalsAmount">$0</span>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn-preview" id="previewBtn">Preview Proposal</button>
+      <button type="button" class="btn-generate" id="generateBtn">Generate Word + PDF</button>
+    </div>
+
+    <div id="generateStatus" class="generate-status"></div>
+    <div id="downloadLinks" class="download-links"></div>
+  </aside>
+
+  <main class="preview-panel">
+    <iframe id="previewFrame" title="Proposal preview"></iframe>
+  </main>
+</div>
+
+<template id="roomCardTemplate">
+  <div class="room-card">
+    <div class="room-card-header">
+      <input type="text" class="room-title" placeholder="Room / Section Name">
+      <button type="button" class="btn-remove room-remove" title="Remove room">×</button>
+    </div>
+    <label class="room-price-label">Price<input type="number" class="room-price" placeholder="0"></label>
+    <div class="scope-columns">
+      <div class="scope-column" data-side="left">
+        <div class="scope-column-header">
+          <span>Left Column</span>
+          <span class="scope-add-group">
+            <button type="button" class="btn-add-small" data-add="tradeLabel">+ Label</button>
+            <button type="button" class="btn-add-small" data-add="bullet">+ Bullet</button>
+          </span>
+        </div>
+        <div class="scope-items" data-side="left"></div>
+      </div>
+      <div class="scope-column" data-side="right">
+        <div class="scope-column-header">
+          <span>Right Column</span>
+          <span class="scope-add-group">
+            <button type="button" class="btn-add-small" data-add="tradeLabel">+ Label</button>
+            <button type="button" class="btn-add-small" data-add="bullet">+ Bullet</button>
+          </span>
+        </div>
+        <div class="scope-items" data-side="right"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="scopeItemTemplate">
+  <div class="scope-item">
+    <input type="text" class="scope-item-text">
+    <button type="button" class="btn-remove scope-item-remove" title="Remove">×</button>
+  </div>
+</template>
+
+<template id="clientSuppliedItemTemplate">
+  <div class="scope-item">
+    <input type="text" class="scope-item-text" placeholder="Item the client is supplying">
+    <button type="button" class="btn-remove scope-item-remove" title="Remove">×</button>
+  </div>
+</template>
+
+<script src="/app.js"></script>
+</body>
+</html>
