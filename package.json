@@ -6,7 +6,9 @@
   "main": "api/generate.js",
   "scripts": {
     "dev": "vercel dev",
-    "extract-logo": "node scripts/extract-logo.js"
+    "extract-logo": "node scripts/extract-logo.js",
+    "setup-bucket": "node scripts/setup-storage-bucket.js",
+    "smoke-test-supabase": "node scripts/smoke-test-supabase.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^149.0.0",

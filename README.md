@@ -31,7 +31,13 @@ Run the schema once against the Supabase project (SQL editor or CLI):
 ```
 supabase/schema.sql
 ```
-Then create a **private** Storage bucket named `proposals` via the Supabase dashboard (Storage → New bucket → uncheck "Public bucket").
+This creates `fbpg_clients` and `fbpg_proposals` — **not** `clients`/`proposals`. This Supabase project is shared with other apps in this workspace (cabinetprice/alfa-studio-tracker) that already own unprefixed `clients`/`proposals` tables with a different, unrelated schema. Do not rename these back — see `supabase/schema.sql`'s header comment.
+
+Then create the **private** Storage bucket via:
+```
+npm run setup-bucket        # scripts/setup-storage-bucket.js — creates a private "proposals" bucket
+```
+(Storage buckets are a separate namespace from Postgres tables, so `proposals` here doesn't collide with anything — only the table names needed the `fbpg_` prefix.)
 
 Local dev:
 ```

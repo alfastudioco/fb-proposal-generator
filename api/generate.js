@@ -82,7 +82,7 @@ module.exports = async function handler(req, res) {
     if (docxSigned.error) throw docxSigned.error;
     if (pdfSigned.error) throw pdfSigned.error;
 
-    const { error: dbError } = await supabase.from('proposals').insert({
+    const { error: dbError } = await supabase.from('fbpg_proposals').insert({
       proposal_num: data.proposalNum,
       client_id: data.clientId ?? null,
       client_name: data.client.name,
