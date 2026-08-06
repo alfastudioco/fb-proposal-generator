@@ -1,4 +1,4 @@
-const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType } = require('docx');
+const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType, TabStopType } = require('docx');
 const {
   NAVY_DARK, ORANGE, GRAY, NOTES_BG, FONT, ACCENT_FONT,
   COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder, shade, formatCurrency,
@@ -81,23 +81,69 @@ function commitmentCell() {
   });
 }
 
-function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note }) {
+function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymentTerms }) {
+  const rightCell = paymentTerms ? buildPaymentTermsBox(paymentTerms) : commitmentCell();
   return new Table({
     width: { size: COL_WIDTHS.investment[0] + COL_WIDTHS.investment[1], type: WidthType.DXA },
     columnWidths: COL_WIDTHS.investment,
     rows: [
       new TableRow({
-        children: [investmentCell(totalLabel, totalAmount, note), commitmentCell()],
+        children: [investmentCell(totalLabel, totalAmount, note), rightCell],
       }),
     ],
   });
 }
 
-// Phase 2 — spec §5.3. Not implemented; kept as a documented stub so the
-// module's shape already anticipates the payment-terms box replacing the
-// commitment box when `paymentTerms` is present on the proposal data.
-function buildPaymentTermsBox() {
-  throw new Error('buildPaymentTermsBox is not implemented in Phase 1 (spec §5.3)');
+// Replaces the "Our Commitment" cell with a flexible list of payment lines
+// (deposit/milestones/balance -- the split varies per job, so this is a
+// free-form {label, amount} list rather than a fixed deposit/balance split).
+function buildPaymentTermsBox(paymentTerms) {
+  const { lines, note } = paymentTerms;
+
+  const children = [
+    new Paragraph({
+      spacing: { after: spacingPt(8) },
+      children: [
+        new TextRun({ text: 'PAYMENT TERMS', font: FONT, size: pt(11), bold: true, color: ORANGE, characterSpacing: 20 }),
+      ],
+    }),
+  ];
+
+  lines.forEach((line, i) => {
+    children.push(
+      new Paragraph({
+        spacing: { after: i === lines.length - 1 ? 0 : spacingPt(4) },
+        tabStops: [{ type: TabStopType.RIGHT, position: 4200 }],
+        children: [
+          new TextRun({ text: line.label, font: ACCENT_FONT, size: pt(10), color: GRAY }),
+          new TextRun({ text: `\t${formatCurrency(line.amount)}`, font: FONT, size: pt(10), bold: true, color: NAVY_DARK }),
+        ],
+      }),
+    );
+  });
+
+  if (note) {
+    children.push(
+      new Paragraph({
+        spacing: { before: spacingPt(8) },
+        children: [new TextRun({ text: note, font: ACCENT_FONT, italics: true, size: pt(9), color: GRAY })],
+      }),
+    );
+  }
+
+  return new TableCell({
+    width: { size: COL_WIDTHS.investment[1], type: WidthType.DXA },
+    shading: shade(NOTES_BG),
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 260, bottom: 260, left: 300, right: 300 },
+    borders: cellBorders({
+      top: thinBorder('1B3A6B'),
+      bottom: thinBorder('1B3A6B'),
+      right: thinBorder('1B3A6B'),
+      left: thinBorder('1B3A6B'),
+    }),
+    children,
+  });
 }
 
 // Phase 2 — spec §5.4 (addendum/updated proposal line-items + payment

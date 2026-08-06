@@ -98,6 +98,9 @@ module.exports = async function handler(req, res) {
       total_amount: data.totalAmount,
       total_label: data.totalLabel ?? null,
       notes: data.notes ?? null,
+      payment_terms: data.paymentTerms ?? null,
+      expiration_date: data.expirationDate ?? null,
+      terms_and_conditions: data.termsAndConditions ?? null,
       docx_storage_path: docxPath,
       pdf_storage_path: pdfPath,
     });

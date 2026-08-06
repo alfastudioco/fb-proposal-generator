@@ -25,6 +25,7 @@ Create `.env.local` (gitignored) with:
 SUPABASE_URL=https://dasufgubibuutrpwounv.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<from Supabase dashboard → Settings → API — NOT the anon key>
 LOCAL_CHROMIUM=true         # forces the local full-puppeteer fallback instead of @sparticuz/chromium
+ANTHROPIC_API_KEY=<from console.anthropic.com — powers image-based client-info extraction and AI scope generation>
 ```
 
 Run the schema once against the Supabase project (SQL editor or CLI):
@@ -44,13 +45,19 @@ Local dev:
 npm run dev        # runs `vercel dev`
 ```
 
-On deploy, add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the Vercel project's Environment Variables (dashboard) — `.env.local` is not read in production.
+On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_KEY` to the Vercel project's Environment Variables (dashboard) — `.env.local` is not read in production.
 
 ## API
 
 `POST /api/generate` — body matches the proposal data model in `generator/validate.js`. Returns `{ docxUrl, pdfUrl }` as 7-day signed Supabase Storage URLs.
 
 `POST /api/preview` — same body, returns `{ html }` for the browser's live preview panel (no Storage/DB writes).
+
+`POST /api/extract-client` — body `{ imageBase64, mediaType }` (a text/email screenshot, business card, or handwritten note). Returns `{ client: {name, phone, email, address}, matches }`, where `matches` are candidate `fbpg_clients` rows found by phone/email/name.
+
+`GET /api/clients?q=` / `POST /api/clients` — search `fbpg_clients` by name, or create/update a client record (`{id?, name, address, phone, email}`).
+
+`POST /api/generate-scope` — body `{ description, roomTitle? }`. Returns `{ items, suggestedPrice, priceRationale }`, grounded in `snippets.js`'s real scope-of-work library and past proposal pricing.
 
 ## Known limitations
 

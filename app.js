@@ -4,6 +4,8 @@
   const state = {
     sections: [], // { id, title, price, leftScope: [{type,text}], rightScope: [...] }
     clientSupplied: [], // [string]
+    paymentTermLines: [], // [{label, amount}]
+    clientId: null, // set when an extracted client is matched/linked to an existing fbpg_clients row
   };
 
   let sectionIdCounter = 0;
@@ -20,6 +22,8 @@
   const roomCardTemplate = el('roomCardTemplate');
   const scopeItemTemplate = el('scopeItemTemplate');
   const clientSuppliedItemTemplate = el('clientSuppliedItemTemplate');
+  const paymentTermLineTemplate = el('paymentTermLineTemplate');
+  const paymentTermsList = el('paymentTermsList');
   const totalsAmountEl = el('totalsAmount');
   const previewFrame = el('previewFrame');
   const generateStatus = el('generateStatus');
@@ -36,9 +40,111 @@
   // Preview/Generate because the field looked filled in but wasn't.
   el('proposalNum').value = String(Date.now()).slice(-4);
 
+  // ---- Client info extraction from an image ----------------------------------
+
+  const MAX_IMAGE_DIMENSION = 1200;
+
+  // Downscales via <canvas> before base64-encoding -- keeps the request well
+  // under Vercel's ~4.5MB body limit and keeps vision latency/cost down.
+  // Photos (business cards, handwritten notes) are usually far larger than
+  // needed for text extraction at full resolution.
+  function downscaleImageToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read the image file'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Could not decode the image file'));
+        img.onload = () => {
+          const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(dataUrl.slice(dataUrl.indexOf(',') + 1));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderClientMatches(matches) {
+    const panel = el('clientMatchPanel');
+    panel.innerHTML = '';
+    if (!matches || !matches.length) {
+      panel.classList.add('is-hidden');
+      return;
+    }
+    panel.classList.remove('is-hidden');
+    const heading = document.createElement('div');
+    heading.textContent = 'Existing client found:';
+    panel.appendChild(heading);
+    matches.forEach((match) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = `Use ${match.name}${match.address ? ` — ${match.address}` : ''}`;
+      btn.addEventListener('click', () => {
+        state.clientId = match.id;
+        el('clientName').value = match.name || '';
+        el('propertyAddress').value = match.address || '';
+        el('clientPhone').value = match.phone || '';
+        el('clientEmail').value = match.email || '';
+        panel.classList.add('is-hidden');
+      });
+      panel.appendChild(btn);
+    });
+  }
+
+  el('extractClientBtn').addEventListener('click', async () => {
+    const fileInput = el('clientImageInput');
+    const statusEl = el('clientExtractStatus');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      statusEl.textContent = 'Choose an image first.';
+      statusEl.className = 'generate-status error';
+      return;
+    }
+
+    statusEl.textContent = 'Reading image…';
+    statusEl.className = 'generate-status';
+    el('clientMatchPanel').classList.add('is-hidden');
+
+    try {
+      const imageBase64 = await downscaleImageToBase64(file);
+      statusEl.textContent = 'Extracting client info…';
+      const res = await fetch('/api/extract-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, mediaType: 'image/jpeg' }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        statusEl.textContent = body.error || 'Extraction failed.';
+        statusEl.className = 'generate-status error';
+        return;
+      }
+
+      state.clientId = null;
+      const { client, matches } = body;
+      if (client.name) el('clientName').value = client.name;
+      if (client.address) el('propertyAddress').value = client.address;
+      if (client.phone) el('clientPhone').value = client.phone;
+      if (client.email) el('clientEmail').value = client.email;
+      renderClientMatches(matches);
+
+      statusEl.textContent = 'Done — review the fields above before generating.';
+      statusEl.className = 'generate-status';
+    } catch (err) {
+      statusEl.textContent = `Extraction failed: ${err.message}`;
+      statusEl.className = 'generate-status error';
+    }
+  });
+
   // ---- Snippet library (window.SNIPPET_LIBRARY, from snippets.js) -----------
 
-  const SNIPPETS = window.SNIPPET_LIBRARY || { categories: [], notes: [], clientSuppliedCommon: [] };
+  const SNIPPETS = window.SNIPPET_LIBRARY || { categories: [], notes: [], clientSuppliedCommon: [], termsAndConditions: [] };
 
   function populateSnippetSelects() {
     // Populate the <template>'s select once, before any cloning -- every
@@ -66,6 +172,14 @@
       opt.value = text;
       opt.textContent = text.length > 60 ? `${text.slice(0, 57)}...` : text;
       clientSuppliedSelect.appendChild(opt);
+    }
+
+    const termsSelect = el('termsSnippetSelect');
+    for (const clause of SNIPPETS.termsAndConditions || []) {
+      const opt = document.createElement('option');
+      opt.value = clause.text;
+      opt.textContent = clause.label;
+      termsSelect.appendChild(opt);
     }
   }
 
@@ -101,8 +215,49 @@
 
   function addRoom() {
     const id = nextSectionId();
-    state.sections.push({ id, title: '', subtitle: '', price: 0, priceLabel: '', leftScope: [], rightScope: [] });
+    state.sections.push({
+      id, title: '', subtitle: '', price: 0, priceLabel: '', description: '', scopeStatus: null,
+      leftScope: [], rightScope: [],
+    });
     renderRooms();
+  }
+
+  async function generateScopeForRoom(sectionId, description) {
+    const section = state.sections.find((s) => s.id === sectionId);
+    if (!section) return;
+    if (!description.trim()) {
+      section.scopeStatus = { text: 'Describe the project first.', error: true };
+      renderRooms();
+      return;
+    }
+
+    section.scopeStatus = { text: 'Generating…', error: false };
+    renderRooms();
+
+    try {
+      const res = await fetch('/api/generate-scope', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description, roomTitle: section.title }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        section.scopeStatus = { text: body.error || 'Scope generation failed.', error: true };
+        renderRooms();
+        return;
+      }
+
+      const { left, right } = splitSnippetItems(body.items || []);
+      section.leftScope.push(...left);
+      section.rightScope.push(...right);
+      if (typeof body.suggestedPrice === 'number') section.price = body.suggestedPrice;
+      section.scopeStatus = { text: body.priceRationale ? `Estimate: ${body.priceRationale}` : 'Done.', error: false };
+      renderRooms();
+      recalcTotals();
+    } catch (err) {
+      section.scopeStatus = { text: `Failed: ${err.message}`, error: true };
+      renderRooms();
+    }
   }
 
   function removeRoom(id) {
@@ -153,6 +308,20 @@
       const snippetSelect = card.querySelector('.room-snippet-select');
       snippetSelect.addEventListener('change', () => {
         if (snippetSelect.value) insertSnippetIntoRoom(section.id, snippetSelect.value);
+      });
+
+      const descTextarea = card.querySelector('.room-description');
+      descTextarea.value = section.description || '';
+      descTextarea.addEventListener('input', () => { section.description = descTextarea.value; });
+
+      const scopeStatusEl = card.querySelector('.room-scope-status');
+      if (section.scopeStatus) {
+        scopeStatusEl.textContent = section.scopeStatus.text;
+        scopeStatusEl.className = `room-scope-status${section.scopeStatus.error ? ' error' : ''}`;
+      }
+
+      card.querySelector('.generate-scope-btn').addEventListener('click', () => {
+        generateScopeForRoom(section.id, descTextarea.value);
       });
 
       for (const side of ['left', 'right']) {
@@ -222,6 +391,47 @@
     e.target.value = '';
   });
 
+  el('termsSnippetSelect').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    const termsEl = el('termsAndConditions');
+    termsEl.value = termsEl.value.trim() ? `${termsEl.value.trim()}\n${e.target.value}` : e.target.value;
+    e.target.value = '';
+  });
+
+  // ---- Payment terms ----------------------------------------------------------
+
+  function addPaymentTermLine() {
+    state.paymentTermLines.push({ label: '', amount: 0 });
+    renderPaymentTermLines();
+  }
+
+  function removePaymentTermLine(index) {
+    state.paymentTermLines.splice(index, 1);
+    renderPaymentTermLines();
+  }
+
+  function renderPaymentTermLines() {
+    paymentTermsList.innerHTML = '';
+    state.paymentTermLines.forEach((line, index) => {
+      const frag = paymentTermLineTemplate.content.cloneNode(true);
+      const labelInput = frag.querySelector('.payment-term-label');
+      const amountInput = frag.querySelector('.payment-term-amount');
+      labelInput.value = line.label;
+      amountInput.value = line.amount || '';
+      labelInput.addEventListener('input', () => { line.label = labelInput.value; });
+      amountInput.addEventListener('input', () => { line.amount = Number(amountInput.value) || 0; });
+      frag.querySelector('.payment-term-remove').addEventListener('click', () => removePaymentTermLine(index));
+      paymentTermsList.appendChild(frag);
+    });
+  }
+
+  el('addPaymentTermBtn').addEventListener('click', addPaymentTermLine);
+
+  el('paymentTermsToggle').addEventListener('change', (e) => {
+    el('paymentTermsPanel').classList.toggle('is-hidden', !e.target.checked);
+    if (e.target.checked && !state.paymentTermLines.length) addPaymentTermLine();
+  });
+
   // ---- Totals ---------------------------------------------------------------
 
   function formatCurrency(amount) {
@@ -239,6 +449,7 @@
     return {
       proposalNum: el('proposalNum').value.trim(),
       date: el('proposalDate').value.trim(),
+      clientId: state.clientId || undefined,
       client: {
         name: el('clientName').value.trim(),
         address: el('propertyAddress').value.trim(),
@@ -259,7 +470,19 @@
       totalLabel: el('totalLabel').value.trim(),
       totalAmount: state.sections.reduce((sum, s) => sum + (Number(s.price) || 0), 0),
       investmentNote: el('investmentNote').value.trim() || undefined,
+      expirationDate: el('expirationDate').value.trim() || undefined,
+      termsAndConditions: el('termsAndConditions').value.trim() || undefined,
+      paymentTerms: collectPaymentTerms(),
     };
+  }
+
+  function collectPaymentTerms() {
+    if (!el('paymentTermsToggle').checked) return undefined;
+    const lines = state.paymentTermLines
+      .filter((l) => l.label.trim())
+      .map((l) => ({ label: l.label.trim(), amount: Number(l.amount) || 0 }));
+    if (!lines.length) return undefined;
+    return { lines, note: el('paymentTermsNote').value.trim() || undefined };
   }
 
   // ---- Preview ----------------------------------------------------------------

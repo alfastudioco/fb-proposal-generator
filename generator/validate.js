@@ -17,6 +17,25 @@ function validateScopeItems(items, label, errors) {
   });
 }
 
+function validatePaymentTerms(paymentTerms, errors) {
+  if (paymentTerms === undefined) return;
+  if (!paymentTerms || typeof paymentTerms !== 'object') {
+    errors.push('paymentTerms must be an object');
+    return;
+  }
+  if (!Array.isArray(paymentTerms.lines) || paymentTerms.lines.length === 0) {
+    errors.push('paymentTerms.lines must be a non-empty array');
+  } else {
+    paymentTerms.lines.forEach((line, i) => {
+      if (!isNonEmptyString(line && line.label)) errors.push(`paymentTerms.lines[${i}].label must be a non-empty string`);
+      if (typeof (line && line.amount) !== 'number') errors.push(`paymentTerms.lines[${i}].amount must be a number`);
+    });
+  }
+  if (paymentTerms.note !== undefined && typeof paymentTerms.note !== 'string') {
+    errors.push('paymentTerms.note must be a string if provided');
+  }
+}
+
 function validateProposalData(body) {
   const errors = [];
 
@@ -55,6 +74,16 @@ function validateProposalData(body) {
 
   if (body.clientSupplied !== undefined && !Array.isArray(body.clientSupplied)) {
     errors.push('clientSupplied must be an array if provided');
+  }
+
+  validatePaymentTerms(body.paymentTerms, errors);
+
+  if (body.expirationDate !== undefined && typeof body.expirationDate !== 'string') {
+    errors.push('expirationDate must be a string if provided');
+  }
+
+  if (body.termsAndConditions !== undefined && typeof body.termsAndConditions !== 'string') {
+    errors.push('termsAndConditions must be a string if provided');
   }
 
   return { valid: errors.length === 0, errors };

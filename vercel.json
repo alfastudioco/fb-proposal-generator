@@ -3,6 +3,12 @@
     "api/generate.js": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/extract-client.js": {
+      "maxDuration": 30
+    },
+    "api/generate-scope.js": {
+      "maxDuration": 30
     }
   }
 }

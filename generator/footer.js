@@ -1,5 +1,5 @@
-const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign } = require('docx');
-const { NAVY, ORANGE, GRAY, LGRAY, FONT, COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder } = require('./styles');
+const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType } = require('docx');
+const { NAVY, ORANGE, GRAY, LGRAY, ACCENT_FONT, FONT, COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder } = require('./styles');
 
 const CONTACT = {
   phone: '(847) 962-8955',
@@ -55,6 +55,22 @@ function buildContactFooter() {
   return [topRule, table, addressLine];
 }
 
+function buildExpirationLine(expirationDate) {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: spacingPt(4) },
+    children: [
+      new TextRun({
+        text: `This proposal is valid until ${expirationDate}. Pricing is subject to change after this date.`,
+        font: ACCENT_FONT,
+        italics: true,
+        size: pt(9),
+        color: GRAY,
+      }),
+    ],
+  });
+}
+
 function signatureCell(caption, width) {
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
@@ -99,4 +115,4 @@ function buildSignatureLines() {
   });
 }
 
-module.exports = { CONTACT, buildContactFooter, buildSignatureLines };
+module.exports = { CONTACT, buildContactFooter, buildSignatureLines, buildExpirationLine };

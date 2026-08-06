@@ -374,6 +374,63 @@ function buildNotesBox(notesText) {
   return [table];
 }
 
+// ---- Terms & conditions box -----------------------------------------------
+
+function buildTermsBox(termsText) {
+  if (!termsText || !termsText.trim()) return [];
+
+  const lines = termsText.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  const bodyParagraphs =
+    lines.length > 1
+      ? lines.map(
+          (line) =>
+            new Paragraph({
+              numbering: { reference: 'sq', level: 0 },
+              spacing: { after: spacingPt(5) },
+              children: [new TextRun({ text: line, font: ACCENT_FONT, italics: true, size: pt(9.5), color: GRAY })],
+            }),
+        )
+      : [
+          new Paragraph({
+            children: [new TextRun({ text: lines[0] || '', font: ACCENT_FONT, italics: true, size: pt(9.5), color: GRAY })],
+          }),
+        ];
+
+  const cell = new TableCell({
+    width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
+    shading: shade(NOTES_BG),
+    borders: cellBorders({
+      top: thinBorder(NAVY),
+      bottom: thinBorder(NAVY),
+      right: thinBorder(NAVY),
+      left: thickBorder(ORANGE, 18),
+    }),
+    margins: { top: 160, bottom: 160, left: 220, right: 220 },
+    children: [
+      new Paragraph({
+        spacing: { after: spacingPt(8) },
+        border: { bottom: thinBorder(ORANGE) },
+        children: [
+          new TextRun({
+            text: 'TERMS & CONDITIONS', font: FONT, size: pt(10), bold: true, color: ORANGE,
+            characterSpacing: 15, underline: {},
+          }),
+        ],
+      }),
+      ...bodyParagraphs,
+    ],
+  });
+
+  const table = new Table({
+    width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
+    columnWidths: [FULL_WIDTH_DXA],
+    rows: [new TableRow({ children: [cell] })],
+  });
+
+  return [table];
+}
+
 module.exports = {
   buildHeader,
   buildMetaBar,
@@ -383,4 +440,5 @@ module.exports = {
   buildSectionLabel,
   buildClientSuppliedItems,
   buildNotesBox,
+  buildTermsBox,
 };

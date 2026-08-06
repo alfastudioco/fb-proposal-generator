@@ -10,7 +10,7 @@
 // generator/validate.js). Users pick a category, it gets inserted, then
 // they edit specifics (counts, materials, dimensions) for the real job.
 
-window.SNIPPET_LIBRARY = {
+const SNIPPET_LIBRARY = {
   categories: [
     {
       id: 'engineering',
@@ -359,4 +359,35 @@ window.SNIPPET_LIBRARY = {
     'Vanity light fixtures',
     'Medicine cabinet or mirror',
   ],
+
+  // Generic starter boilerplate for the Terms & Conditions block -- unlike
+  // the rest of this file, this is NOT extracted from real past proposals
+  // (none of the source documents had a standing T&C section). Review with
+  // legal/insurance before relying on it; it's meant as an editable
+  // starting point, inserted the same way notes snippets are.
+  termsAndConditions: [
+    {
+      label: 'Change order policy',
+      text: 'Any changes to the scope of work outlined above will be documented in a written change order and signed by both parties before work proceeds. Change orders may affect the project price and timeline.',
+    },
+    {
+      label: 'Payment / lien waiver',
+      text: 'Payments are due per the schedule above. A lien waiver will be provided upon receipt of each payment.',
+    },
+    {
+      label: 'Delays beyond our control',
+      text: 'FB Construction is not responsible for delays caused by weather, material/supplier backorders, permit or inspection timing, or other circumstances beyond our reasonable control.',
+    },
+    {
+      label: 'Workmanship warranty',
+      text: 'All labor is warrantied for one year from substantial completion. Manufacturer warranties on materials and fixtures are passed through to the client.',
+    },
+  ],
 };
+
+// Loaded two ways: as a browser global via <script> in index.html (no
+// build step), and required server-side (api/generate-scope.js) as
+// grounding context for AI scope generation -- one data source, no
+// duplication.
+if (typeof window !== 'undefined') window.SNIPPET_LIBRARY = SNIPPET_LIBRARY;
+if (typeof module !== 'undefined' && module.exports) module.exports = SNIPPET_LIBRARY;

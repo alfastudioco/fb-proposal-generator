@@ -120,8 +120,46 @@ function renderNotes(notesText) {
   `;
 }
 
+function renderTerms(termsText) {
+  if (!termsText || !termsText.trim()) return '';
+  const lines = termsText.split('\n').map((l) => l.trim()).filter(Boolean);
+  const body =
+    lines.length > 1
+      ? lines.map((l) => `<div class="bullet"><span class="dash">–</span><span>${esc(l)}</span></div>`).join('')
+      : `<div class="notes-text">${esc(lines[0] || '')}</div>`;
+  return `
+    <div class="notes-box terms-box">
+      <div class="notes-heading">TERMS &amp; CONDITIONS</div>
+      ${body}
+    </div>
+  `;
+}
+
+function renderPaymentTerms(paymentTerms) {
+  const { lines, note } = paymentTerms;
+  return `
+    <td class="commitment-box payment-terms-box">
+      <div class="commitment-label">PAYMENT TERMS</div>
+      ${lines
+        .map(
+          (line) => `
+        <div class="payment-terms-line">
+          <span class="payment-terms-label">${esc(line.label)}</span>
+          <span class="payment-terms-amount">${esc(formatCurrency(line.amount))}</span>
+        </div>
+      `,
+        )
+        .join('')}
+      ${note ? `<div class="payment-terms-note">${esc(note)}</div>` : ''}
+    </td>
+  `;
+}
+
 function renderProposalHtml(data) {
-  const { client, sections = [], clientSupplied = [], notes = '', totalLabel = '', totalAmount, investmentNote, proposalNum, date, updated } = data;
+  const {
+    client, sections = [], clientSupplied = [], notes = '', totalLabel = '', totalAmount, investmentNote,
+    proposalNum, date, updated, paymentTerms, expirationDate, termsAndConditions,
+  } = data;
 
   return `<!doctype html>
 <html>
@@ -187,6 +225,15 @@ function renderProposalHtml(data) {
   .commitment-label { color: ${ORANGE}; font-size: 11pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 8px; }
   .commitment-text { font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 10pt; }
 
+  .payment-terms-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 4px; }
+  .payment-terms-label { font-family: ${ACCENT_FONT}, serif; color: ${GRAY}; }
+  .payment-terms-amount { color: ${NAVY_DARK}; font-weight: bold; }
+  .payment-terms-note { font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 8px; }
+
+  .terms-box { margin-top: 16px; }
+
+  .expiration-line { text-align: center; font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 9pt; margin: 4px 0 8px; }
+
   .footer-rule { border: none; border-top: 1pt solid ${LGRAY}; margin: 16px 0 8px; }
   .contact-table td { width: 33%; padding-right: 16px; }
   .contact-label { color: ${ORANGE}; font-size: 8pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; }
@@ -245,12 +292,20 @@ function renderProposalHtml(data) {
         <div class="investment-box-amount">${esc(formatCurrency(totalAmount))}</div>
         ${investmentNote ? `<div class="investment-box-note">${esc(investmentNote)}</div>` : ''}
       </td>
+      ${
+        paymentTerms
+          ? renderPaymentTerms(paymentTerms)
+          : `
       <td class="commitment-box">
         <div class="commitment-label">OUR COMMITMENT</div>
         <div class="commitment-text">${esc(COMMITMENT_TEXT)}</div>
       </td>
+      `
+      }
     </tr>
   </table>
+
+  ${renderTerms(termsAndConditions)}
 
   <hr class="footer-rule">
   <table class="contact-table">
@@ -270,6 +325,8 @@ function renderProposalHtml(data) {
     </tr>
   </table>
   <div class="address-line">${esc(CONTACT.address)}</div>
+
+  ${expirationDate ? `<div class="expiration-line">This proposal is valid until ${esc(expirationDate)}. Pricing is subject to change after this date.</div>` : ''}
 
   <table class="signature-table">
     <tr>

@@ -29,6 +29,11 @@
       </div>
       <label>Date<input type="text" id="proposalDate"></label>
       <label>Timeline<input type="text" id="timeline" placeholder="6–8 Weeks"></label>
+
+      <label>Upload Client Info (screenshot, business card, note)<input type="file" id="clientImageInput" accept="image/*"></label>
+      <button type="button" class="btn-add" id="extractClientBtn">Extract from Image</button>
+      <div id="clientExtractStatus" class="generate-status"></div>
+      <div id="clientMatchPanel" class="client-match-panel is-hidden"></div>
     </section>
 
     <section class="panel">
@@ -64,6 +69,27 @@
       <h2>Investment Summary</h2>
       <label>Total Label (shown under the total)<input type="text" id="totalLabel" placeholder="Kitchen • Bath • Flooring"></label>
       <label>Investment Note (optional, italic)<input type="text" id="investmentNote" placeholder="Cabinet pricing subject to finalization"></label>
+      <label>Valid Until (optional)<input type="text" id="expirationDate" placeholder="30 days from proposal date"></label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="paymentTermsToggle">
+        Use payment terms instead of the commitment box
+      </label>
+      <div id="paymentTermsPanel" class="payment-terms-panel is-hidden">
+        <div id="paymentTermsList"></div>
+        <button type="button" class="btn-add" id="addPaymentTermBtn">+ Add Payment Line</button>
+        <label>Note (optional, italic)<input type="text" id="paymentTermsNote" placeholder="Balance due upon substantial completion"></label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Terms &amp; Conditions</h2>
+        <select class="snippet-select" id="termsSnippetSelect">
+          <option value="">+ Standard clause…</option>
+        </select>
+      </div>
+      <textarea id="termsAndConditions" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
     </section>
 
     <div class="totals-bar">
@@ -99,6 +125,13 @@
     <select class="snippet-select room-snippet-select">
       <option value="">+ Insert common scope…</option>
     </select>
+
+    <div class="ai-scope-generator">
+      <textarea class="room-description" rows="2" placeholder="Describe the project in plain language (e.g. &quot;gut kitchen remodel, move the sink to an island, new hardwood floor&quot;)"></textarea>
+      <button type="button" class="btn-add generate-scope-btn">Generate Scope</button>
+      <div class="room-scope-status"></div>
+    </div>
+
     <div class="scope-columns">
       <div class="scope-column" data-side="left">
         <div class="scope-column-header">
@@ -135,6 +168,14 @@
   <div class="scope-item">
     <input type="text" class="scope-item-text" placeholder="Item the client is supplying">
     <button type="button" class="btn-remove scope-item-remove" title="Remove">×</button>
+  </div>
+</template>
+
+<template id="paymentTermLineTemplate">
+  <div class="payment-term-line">
+    <input type="text" class="payment-term-label" placeholder="e.g. Deposit due at signing">
+    <input type="number" class="payment-term-amount" placeholder="0">
+    <button type="button" class="btn-remove payment-term-remove" title="Remove">×</button>
   </div>
 </template>
 

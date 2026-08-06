@@ -11,6 +11,7 @@
     "smoke-test-supabase": "node scripts/smoke-test-supabase.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@sparticuz/chromium": "^149.0.0",
     "@supabase/supabase-js": "^2.112.0",
     "docx": "8.5.0",

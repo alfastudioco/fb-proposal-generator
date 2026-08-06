@@ -41,6 +41,14 @@ create table if not exists fbpg_proposals (
   created_at timestamptz not null default now()
 );
 
+-- Phase 2: payment terms (replaces the fixed commitment box when present),
+-- proposal expiration date, and a terms & conditions block. Added via
+-- ALTER rather than the CREATE TABLE above so re-running this file against
+-- the already-deployed table is safe.
+alter table fbpg_proposals add column if not exists payment_terms jsonb;
+alter table fbpg_proposals add column if not exists expiration_date text;
+alter table fbpg_proposals add column if not exists terms_and_conditions text;
+
 -- RLS: deny-by-default. All reads/writes happen server-side in
 -- api/generate.js using the service role key, which bypasses RLS
 -- automatically — no policies are added for anon/authenticated roles,

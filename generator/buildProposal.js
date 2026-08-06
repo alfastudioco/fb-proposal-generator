@@ -10,9 +10,10 @@ const {
   buildTwoColumnScope,
   buildClientSuppliedItems,
   buildNotesBox,
+  buildTermsBox,
 } = require('./sections');
 const { buildInvestmentAndCommitmentBox } = require('./totals');
-const { buildContactFooter, buildSignatureLines } = require('./footer');
+const { buildContactFooter, buildSignatureLines, buildExpirationLine } = require('./footer');
 
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo_rgb.png');
 
@@ -70,12 +71,21 @@ async function buildProposal(proposalData) {
       totalLabel: data.totalLabel,
       totalAmount: data.totalAmount,
       note: data.investmentNote,
+      paymentTerms: data.paymentTerms,
     }),
   );
   children.push(spacer(240));
 
+  children.push(...buildTermsBox(data.termsAndConditions));
+  if (data.termsAndConditions && data.termsAndConditions.trim()) children.push(spacer(200));
+
   children.push(...buildContactFooter());
   children.push(spacer(240));
+
+  if (data.expirationDate) {
+    children.push(buildExpirationLine(data.expirationDate));
+  }
+
   children.push(buildSignatureLines());
 
   const doc = new Document({
