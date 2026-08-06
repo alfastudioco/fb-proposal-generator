@@ -86,6 +86,10 @@ function validateProposalData(body) {
     errors.push('termsAndConditions must be a string if provided');
   }
 
+  if (body.id !== undefined && !isNonEmptyString(body.id)) {
+    errors.push('id must be a non-empty string if provided');
+  }
+
   return { valid: errors.length === 0, errors };
 }
 

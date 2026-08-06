@@ -390,6 +390,16 @@ button {
 }
 .view-history-link:hover { color: var(--orange); }
 
+.editing-indicator {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--navy-lite);
+  color: var(--navy);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
 /* proposals.html history page */
 .history-page {
   max-width: 1000px;
@@ -467,3 +477,4 @@ button {
 }
 .btn-file:hover { background: var(--navy-lite); }
 .btn-file:disabled { opacity: 0.6; }
+a.btn-file { display: inline-block; text-decoration: none; }

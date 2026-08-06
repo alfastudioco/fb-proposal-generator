@@ -6,6 +6,7 @@
     clientSupplied: [], // [string]
     paymentTermLines: [], // [{label, amount}]
     clientId: null, // set when an extracted client is matched/linked to an existing fbpg_clients row
+    editingId: null, // set when loaded via ?edit=<id> -- Generate then updates this row instead of inserting a new one
   };
 
   let sectionIdCounter = 0;
@@ -450,6 +451,7 @@
       proposalNum: el('proposalNum').value.trim(),
       date: el('proposalDate').value.trim(),
       clientId: state.clientId || undefined,
+      id: state.editingId || undefined,
       client: {
         name: el('clientName').value.trim(),
         address: el('propertyAddress').value.trim(),
@@ -483,6 +485,65 @@
       .map((l) => ({ label: l.label.trim(), amount: Number(l.amount) || 0 }));
     if (!lines.length) return undefined;
     return { lines, note: el('paymentTermsNote').value.trim() || undefined };
+  }
+
+  // ---- Load a saved proposal for editing (?edit=<id>) ------------------------
+
+  async function loadProposalForEdit(id) {
+    try {
+      const res = await fetch(`/api/proposals?id=${encodeURIComponent(id)}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Could not load proposal');
+      const p = body.proposal;
+
+      el('clientName').value = p.client_name || '';
+      el('propertyAddress').value = p.client_address || '';
+      el('clientPhone').value = p.client_phone || '';
+      el('clientEmail').value = p.client_email || '';
+      el('proposalNum').value = p.proposal_num || '';
+      el('proposalDate').value = p.date || '';
+      el('notes').value = p.notes || '';
+      el('totalLabel').value = p.total_label || '';
+      el('investmentNote').value = p.investment_note || '';
+      el('expirationDate').value = p.expiration_date || '';
+      el('termsAndConditions').value = p.terms_and_conditions || '';
+
+      state.editingId = id;
+      state.clientId = p.client_id ?? null;
+
+      state.sections = (p.sections || []).map((s) => ({
+        id: nextSectionId(),
+        title: s.title || '',
+        subtitle: s.subtitle || '',
+        price: s.price || 0,
+        priceLabel: s.priceLabel || '',
+        description: '',
+        scopeStatus: null,
+        leftScope: (s.leftScope || []).map((it) => ({ ...it })),
+        rightScope: (s.rightScope || []).map((it) => ({ ...it })),
+      }));
+
+      state.clientSupplied = Array.isArray(p.client_supplied) ? [...p.client_supplied] : [];
+
+      if (p.payment_terms && Array.isArray(p.payment_terms.lines)) {
+        el('paymentTermsToggle').checked = true;
+        el('paymentTermsPanel').classList.remove('is-hidden');
+        state.paymentTermLines = p.payment_terms.lines.map((l) => ({ label: l.label || '', amount: l.amount || 0 }));
+        el('paymentTermsNote').value = p.payment_terms.note || '';
+      }
+
+      const indicator = el('editingIndicator');
+      indicator.textContent = `Editing Proposal #${p.proposal_num}`;
+      indicator.classList.remove('is-hidden');
+      el('generateBtn').textContent = 'Save Changes';
+
+      renderRooms();
+      renderClientSupplied();
+      renderPaymentTermLines();
+    } catch (err) {
+      generateStatus.textContent = `Could not load proposal to edit: ${err.message}`;
+      generateStatus.className = 'generate-status error';
+    }
   }
 
   // ---- Preview ----------------------------------------------------------------
@@ -562,8 +623,17 @@
 
   document.addEventListener('input', recalcTotals);
 
-  populateSnippetSelects();
-  renderClientSupplied();
-  recalcTotals();
-  previewProposal();
+  async function init() {
+    populateSnippetSelects();
+    const editId = new URLSearchParams(location.search).get('edit');
+    if (editId) {
+      await loadProposalForEdit(editId);
+    } else {
+      renderClientSupplied();
+    }
+    recalcTotals();
+    previewProposal();
+  }
+
+  init();
 })();

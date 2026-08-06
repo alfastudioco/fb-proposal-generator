@@ -49,6 +49,11 @@
 
     const filesCell = document.createElement('td');
     filesCell.className = 'history-files';
+    const editLink = document.createElement('a');
+    editLink.className = 'btn-file';
+    editLink.textContent = 'Edit';
+    editLink.href = `/?edit=${encodeURIComponent(proposal.id)}`;
+    filesCell.appendChild(editLink);
     const docxBtn = document.createElement('button');
     docxBtn.type = 'button';
     docxBtn.className = 'btn-file';

@@ -5,14 +5,27 @@ const { getSupabaseClient } = require('../lib/supabase');
 // api/proposal-link.js when the user actually clicks a download button, so
 // listing never hands out a link that might outlive its usefulness or get
 // generated for rows nobody downloads.
+//
+// GET ?id=<uuid> instead returns one full row (every column, including
+// sections/payment_terms/etc.) -- used by the editor to reload a saved
+// proposal back into the form.
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+  const { id } = req.query || {};
+
   try {
     const supabase = getSupabaseClient();
+
+    if (id) {
+      const { data, error } = await supabase.from('fbpg_proposals').select('*').eq('id', id).single();
+      if (error) throw error;
+      return res.status(200).json({ proposal: data });
+    }
+
     const { data, error } = await supabase
       .from('fbpg_proposals')
       .select('id, proposal_num, client_name, date, total_amount, total_label, created_at')

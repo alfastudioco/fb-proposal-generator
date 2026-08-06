@@ -70,6 +70,21 @@ module.exports = async function handler(req, res) {
 
   try {
     const supabase = getSupabaseClient();
+
+    // Editing a saved proposal: grab its previous file paths now, so they
+    // can be cleaned up after the new files are safely uploaded and the row
+    // is updated -- never delete the old files before the new ones exist.
+    let previousPaths = null;
+    if (data.id) {
+      const { data: existing, error: existingError } = await supabase
+        .from('fbpg_proposals')
+        .select('docx_storage_path, pdf_storage_path')
+        .eq('id', data.id)
+        .single();
+      if (existingError) throw existingError;
+      previousPaths = existing;
+    }
+
     const [docxUpload, pdfUpload] = await Promise.all([
       supabase.storage.from('proposals').upload(docxPath, docxBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -86,7 +101,7 @@ module.exports = async function handler(req, res) {
     if (docxSigned.error) throw docxSigned.error;
     if (pdfSigned.error) throw pdfSigned.error;
 
-    const { error: dbError } = await supabase.from('fbpg_proposals').insert({
+    const row = {
       proposal_num: data.proposalNum,
       client_id: data.clientId ?? null,
       client_name: data.client.name,
@@ -98,15 +113,31 @@ module.exports = async function handler(req, res) {
       total_amount: data.totalAmount,
       total_label: data.totalLabel ?? null,
       notes: data.notes ?? null,
+      client_supplied: data.clientSupplied ?? null,
+      investment_note: data.investmentNote ?? null,
       payment_terms: data.paymentTerms ?? null,
       expiration_date: data.expirationDate ?? null,
       terms_and_conditions: data.termsAndConditions ?? null,
       docx_storage_path: docxPath,
       pdf_storage_path: pdfPath,
-    });
+    };
+
     // A failed audit-trail write must never block file delivery -- the
-    // user still gets both files even if this insert fails.
-    if (dbError) console.error('proposals insert failed (non-fatal):', dbError);
+    // user still gets both files even if this insert/update fails.
+    const { error: dbError } = data.id
+      ? await supabase.from('fbpg_proposals').update(row).eq('id', data.id)
+      : await supabase.from('fbpg_proposals').insert(row);
+    if (dbError) console.error('proposals insert/update failed (non-fatal):', dbError);
+
+    // Only clean up the old files once the new ones are uploaded and the
+    // row points at them -- best-effort, must not affect the response.
+    if (!dbError && previousPaths) {
+      const oldPaths = [previousPaths.docx_storage_path, previousPaths.pdf_storage_path].filter(Boolean);
+      if (oldPaths.length) {
+        const { error: removeError } = await supabase.storage.from('proposals').remove(oldPaths);
+        if (removeError) console.error('old file cleanup failed (non-fatal):', removeError);
+      }
+    }
 
     return res.status(200).json({ docxUrl: docxSigned.data.signedUrl, pdfUrl: pdfSigned.data.signedUrl });
   } catch (err) {

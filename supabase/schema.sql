@@ -49,6 +49,13 @@ alter table fbpg_proposals add column if not exists payment_terms jsonb;
 alter table fbpg_proposals add column if not exists expiration_date text;
 alter table fbpg_proposals add column if not exists terms_and_conditions text;
 
+-- Phase 3: editing a saved proposal needs a full round-trip of everything
+-- the form collects -- these two were previously used to build the docx/pdf
+-- but never persisted, so reloading a saved proposal would have silently
+-- dropped them.
+alter table fbpg_proposals add column if not exists client_supplied jsonb;
+alter table fbpg_proposals add column if not exists investment_note text;
+
 -- RLS: deny-by-default. All reads/writes happen server-side in
 -- api/generate.js using the service role key, which bypasses RLS
 -- automatically — no policies are added for anon/authenticated roles,
