@@ -177,6 +177,18 @@ function renderProposalHtml(data) {
   table { width: 100%; border-collapse: collapse; }
   td { vertical-align: middle; padding: 0; }
 
+  /* Keeps each of these boxed sections intact across a PDF page boundary --
+     without this, Chromium's print engine can split a box mid-content the
+     same way Word can split a table row (see cantSplit in generator/*.js).
+     Deliberately excludes .scope -- a long scope list needs to be able to
+     paginate normally, or it'd get pushed whole to the next page with a
+     large blank gap whenever it's just short of fitting. */
+  .header-table, .meta-bar, .banner, .notes-box, .terms-box,
+  .totals-table, .contact-table, .signature-table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .header-table td { padding-bottom: 4px; }
   .logo { height: 50px; }
   .header-right { text-align: right; color: ${NAVY}; font-weight: bold; font-size: 11pt; letter-spacing: 1.5px; }

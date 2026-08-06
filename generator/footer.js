@@ -32,6 +32,7 @@ function buildContactFooter() {
     columnWidths: COL_WIDTHS.contactFooter,
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           contactCell('PHONE', CONTACT.phone, w1),
           contactCell('EMAIL', CONTACT.email, w2),
@@ -105,6 +106,7 @@ function buildSignatureLines() {
     columnWidths: COL_WIDTHS.signature,
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           signatureCell('FB CONSTRUCTION — AUTHORIZED SIGNATURE & DATE', w1),
           spacerCell(w2),

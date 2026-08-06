@@ -16,6 +16,7 @@ function buildHeader(logoBuffer, { updated = false } = {}) {
     columnWidths: [5040, 5040],
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             width: { size: 5040, type: WidthType.DXA },
@@ -24,7 +25,16 @@ function buildHeader(logoBuffer, { updated = false } = {}) {
             children: [
               new Paragraph({
                 children: [
-                  new ImageRun({ data: logoBuffer, transformation: { width: 162, height: 50 } }),
+                  new ImageRun({
+                    data: logoBuffer,
+                    transformation: { width: 162, height: 50 },
+                    // Without altText, docx emits <wp:docPr name="" descr="" title=""/> --
+                    // an empty name fails strict OOXML validation and Word "repairs" the
+                    // file on open, which can visibly mangle formatting. `title` is left
+                    // empty and stripped entirely in buildProposal.js's post-process --
+                    // older Word versions reject that attribute outright regardless of value.
+                    altText: { name: 'FB Construction Logo', description: 'FB Construction Logo', title: '' },
+                  }),
                 ],
               }),
             ],
@@ -94,6 +104,7 @@ function buildMetaBar({ client, proposalNum, date }) {
     columnWidths: COL_WIDTHS.metaBar,
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           metaCell('PREPARED FOR', [client.name, [client.phone, client.email].filter(Boolean).join('  •  ')], w1),
           metaCell('PROPERTY', [client.address], w2),
@@ -185,7 +196,7 @@ function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
   return new Table({
     width: { size: wBadge + wTitle + wPrice, type: WidthType.DXA },
     columnWidths: COL_WIDTHS.banner,
-    rows: [new TableRow({ children: [badgeCell, titleCell, priceCell] })],
+    rows: [new TableRow({ cantSplit: true, children: [badgeCell, titleCell, priceCell] })],
   });
 }
 
@@ -226,7 +237,7 @@ function buildHeroBanner({ title, subtitle, price, priceLabel }) {
   return new Table({
     width: { size: wTitle + wPrice, type: WidthType.DXA },
     columnWidths: COL_WIDTHS.heroBanner,
-    rows: [new TableRow({ children: [titleCell, priceCell] })],
+    rows: [new TableRow({ cantSplit: true, children: [titleCell, priceCell] })],
   });
 }
 
@@ -281,6 +292,10 @@ function buildTwoColumnScope({ leftScope, rightScope }) {
     width: { size: wLeft + wDivider + wRight, type: WidthType.DXA },
     columnWidths: COL_WIDTHS.twoColSplit,
     rows: [
+      // Deliberately NOT cantSplit, unlike the other rows in this file -- a
+      // long scope list needs to be able to paginate normally; forcing it
+      // to stay atomic would push the whole section to the next page and
+      // leave a large blank gap whenever it's just short of fitting.
       new TableRow({
         children: [
           scopeColumnCell(leftScope, wLeft),
@@ -368,7 +383,7 @@ function buildNotesBox(notesText) {
   const table = new Table({
     width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: [FULL_WIDTH_DXA],
-    rows: [new TableRow({ children: [cell] })],
+    rows: [new TableRow({ cantSplit: true, children: [cell] })],
   });
 
   return [table];
@@ -425,7 +440,7 @@ function buildTermsBox(termsText) {
   const table = new Table({
     width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
     columnWidths: [FULL_WIDTH_DXA],
-    rows: [new TableRow({ children: [cell] })],
+    rows: [new TableRow({ cantSplit: true, children: [cell] })],
   });
 
   return [table];

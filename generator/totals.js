@@ -88,6 +88,7 @@ function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymen
     columnWidths: COL_WIDTHS.investment,
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [investmentCell(totalLabel, totalAmount, note), rightCell],
       }),
     ],
