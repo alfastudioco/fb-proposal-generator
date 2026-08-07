@@ -216,6 +216,16 @@ button {
 }
 .btn-remove:hover { color: var(--orange); }
 
+.btn-insert {
+  background: none;
+  border: none;
+  color: var(--border);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 3px;
+}
+.btn-insert:hover { color: var(--orange); }
+
 .room-card {
   border: 1px solid var(--border);
   border-radius: 6px;

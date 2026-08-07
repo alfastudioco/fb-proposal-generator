@@ -267,9 +267,21 @@
     recalcTotals();
   }
 
-  function addScopeItem(sectionId, side, type) {
+  // beforeIndex omitted (or out of range) appends at the end -- unchanged
+  // default for the column-header "+ Label"/"+ Bullet" buttons. Passing an
+  // index inserts there instead, pushing that item and everything after it
+  // down one -- lets a bullet land anywhere in the column, not just at the
+  // very end (used by the new inline "+" between every existing item, in
+  // both the sidebar and the preview's own insert controls).
+  function addScopeItem(sectionId, side, type, beforeIndex) {
     const section = state.sections.find((s) => s.id === sectionId);
-    section[side === 'left' ? 'leftScope' : 'rightScope'].push({ type, text: '' });
+    const arr = section[side === 'left' ? 'leftScope' : 'rightScope'];
+    const item = { type, text: '' };
+    if (typeof beforeIndex === 'number' && beforeIndex >= 0 && beforeIndex <= arr.length) {
+      arr.splice(beforeIndex, 0, item);
+    } else {
+      arr.push(item);
+    }
     renderRooms();
   }
 
@@ -336,6 +348,7 @@
           textInput.value = item.text;
           textInput.placeholder = item.type === 'tradeLabel' ? 'Trade label (e.g. Plumbing)' : 'Bullet text';
           textInput.addEventListener('input', () => { item.text = textInput.value; });
+          itemFrag.querySelector('.scope-item-insert').addEventListener('click', () => addScopeItem(section.id, side, 'bullet', index));
           itemFrag.querySelector('.scope-item-remove').addEventListener('click', () => removeScopeItem(section.id, side, index));
           columnEl.appendChild(itemFrag);
         });
@@ -636,6 +649,11 @@
       case 'add-bullet': {
         const section = state.sections[payload.section];
         if (section) addScopeItem(section.id, payload.side, 'bullet');
+        break;
+      }
+      case 'insert-bullet': {
+        const section = state.sections[payload.section];
+        if (section) addScopeItem(section.id, payload.side, 'bullet', payload.index);
         break;
       }
       case 'remove-item': {

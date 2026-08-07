@@ -74,15 +74,23 @@ function addControl(action, payload, label) {
   return `<div class="fbpg-add" data-action="${esc(action)}"${dataAttrs(payload)}>+ ${esc(label)}</div>`;
 }
 
+function insertBulletControl(payload) {
+  return `<div class="fbpg-insert" data-action="insert-bullet"${dataAttrs(payload)}>+ Insert bullet</div>`;
+}
+
 function renderScopeColumn(items = [], editable, sectionIndex, side) {
   const itemsHtml = items
     .map((item, i) => {
       const field = `sections.${sectionIndex}.${side}Scope.${i}.text`;
       const remove = editable ? removeControl('remove-item', { section: sectionIndex, side, index: i }) : '';
+      // One insert point before every existing item (including the first)
+      // plus the "Add bullet" link after the last one below covers every
+      // position in the column, not just the end.
+      const insertBefore = editable ? insertBulletControl({ section: sectionIndex, side, index: i }) : '';
       if (item.type === 'tradeLabel') {
-        return `<div class="trade-label"><span${editable ? editableAttrs(field) : ''}>${esc(item.text)}</span>${remove}</div>`;
+        return `${insertBefore}<div class="trade-label"><span${editable ? editableAttrs(field) : ''}>${esc(item.text)}</span>${remove}</div>`;
       }
-      return `<div class="bullet"><span class="dash">–</span><span${editable ? editableAttrs(field) : ''}>${esc(item.text)}</span>${remove}</div>`;
+      return `${insertBefore}<div class="bullet"><span class="dash">–</span><span${editable ? editableAttrs(field) : ''}>${esc(item.text)}</span>${remove}</div>`;
     })
     .join('');
   const addHtml = editable ? addControl('add-bullet', { section: sectionIndex, side }, 'Add bullet') : '';
@@ -297,6 +305,10 @@ function renderEditableStyles() {
   .fbpg-remove:hover { opacity: 1; }
   .fbpg-add { cursor: pointer; display: inline-block; color: ${ORANGE}; font-size: 9pt; font-weight: bold; margin: 6px 0; user-select: none; }
   .fbpg-add:hover { text-decoration: underline; }
+  /* Faint by default (there's one of these before every single bullet) --
+     brightens on hover so it stays discoverable without being noisy. */
+  .fbpg-insert { cursor: pointer; color: ${ORANGE}; font-size: 7.5pt; font-weight: bold; opacity: 0.25; user-select: none; margin: 1px 0; }
+  .fbpg-insert:hover { opacity: 1; text-decoration: underline; }
   .fbpg-room { position: relative; margin-bottom: 4px; }
   .fbpg-room-controls { text-align: right; margin-bottom: 4px; }
   .fbpg-add-room { margin: 12px 0; }
