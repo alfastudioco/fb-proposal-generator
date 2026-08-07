@@ -446,7 +446,13 @@
 
   // ---- Collect form state into the §7 proposal data model -------------------
 
-  function collectProposalData() {
+  // forPreview keeps empty-but-just-added rows (a bullet from "+ Add
+  // bullet", a payment line, etc.) in the payload instead of filtering
+  // them out, so they still exist for the user to type into once the
+  // preview re-renders. The real save/generate path (forPreview: false,
+  // the default) filters them -- an empty dash bullet has no business in
+  // the actual delivered document.
+  function collectProposalData({ forPreview = false } = {}) {
     return {
       proposalNum: el('proposalNum').value.trim(),
       date: el('proposalDate').value.trim(),
@@ -464,25 +470,25 @@
         subtitle: s.subtitle ? s.subtitle.trim() : undefined,
         price: Number(s.price) || 0,
         priceLabel: s.priceLabel ? s.priceLabel.trim() : undefined,
-        leftScope: s.leftScope.filter((it) => it.text.trim()),
-        rightScope: s.rightScope.filter((it) => it.text.trim()),
+        leftScope: forPreview ? s.leftScope.map((it) => ({ ...it })) : s.leftScope.filter((it) => it.text.trim()),
+        rightScope: forPreview ? s.rightScope.map((it) => ({ ...it })) : s.rightScope.filter((it) => it.text.trim()),
       })),
-      clientSupplied: state.clientSupplied.filter((t) => t.trim()),
+      clientSupplied: forPreview ? [...state.clientSupplied] : state.clientSupplied.filter((t) => t.trim()),
       notes: el('notes').value.trim(),
       totalLabel: el('totalLabel').value.trim(),
       totalAmount: state.sections.reduce((sum, s) => sum + (Number(s.price) || 0), 0),
       investmentNote: el('investmentNote').value.trim() || undefined,
       expirationDate: el('expirationDate').value.trim() || undefined,
       termsAndConditions: el('termsAndConditions').value.trim() || undefined,
-      paymentTerms: collectPaymentTerms(),
+      paymentTerms: collectPaymentTerms(forPreview),
     };
   }
 
-  function collectPaymentTerms() {
+  function collectPaymentTerms(forPreview = false) {
     if (!el('paymentTermsToggle').checked) return undefined;
-    const lines = state.paymentTermLines
-      .filter((l) => l.label.trim())
-      .map((l) => ({ label: l.label.trim(), amount: Number(l.amount) || 0 }));
+    const lines = forPreview
+      ? state.paymentTermLines.map((l) => ({ label: l.label, amount: Number(l.amount) || 0 }))
+      : state.paymentTermLines.filter((l) => l.label.trim()).map((l) => ({ label: l.label.trim(), amount: Number(l.amount) || 0 }));
     if (!lines.length) return undefined;
     return { lines, note: el('paymentTermsNote').value.trim() || undefined };
   }
@@ -546,10 +552,141 @@
     }
   }
 
+  // ---- Editing directly in the preview ---------------------------------------
+  //
+  // The preview <iframe> renders with editable:true (see api/preview.js),
+  // which adds contenteditable fields and small add/remove controls, bridged
+  // back here via postMessage since the iframe is a separate document (see
+  // the bridge script in generator/renderHtml.js for the wire format). Text
+  // edits arrive on blur (not per-keystroke), so applying them here never
+  // fights an edit still in progress; structural changes (add/remove) just
+  // re-use the exact same functions the sidebar's own buttons call.
+
+  function parseCurrencyInput(text) {
+    return Number(String(text).replace(/[^0-9.]/g, '')) || 0;
+  }
+
+  const SIMPLE_FIELD_TO_INPUT_ID = {
+    'client.name': 'clientName',
+    'client.address': 'propertyAddress',
+    'client.phone': 'clientPhone',
+    'client.email': 'clientEmail',
+    proposalNum: 'proposalNum',
+    date: 'proposalDate',
+    totalLabel: 'totalLabel',
+    investmentNote: 'investmentNote',
+    notes: 'notes',
+    termsAndConditions: 'termsAndConditions',
+    expirationDate: 'expirationDate',
+    'paymentTerms.note': 'paymentTermsNote',
+  };
+
+  function applyPreviewEdit(field, rawValue) {
+    const value = (rawValue == null ? '' : String(rawValue)).trim();
+
+    const inputId = SIMPLE_FIELD_TO_INPUT_ID[field];
+    if (inputId) {
+      el(inputId).value = value;
+      return;
+    }
+
+    let m;
+    if ((m = field.match(/^sections\.(\d+)\.(title|subtitle|priceLabel)$/))) {
+      const section = state.sections[Number(m[1])];
+      if (section) { section[m[2]] = value; renderRooms(); }
+      return;
+    }
+    if ((m = field.match(/^sections\.(\d+)\.price$/))) {
+      const section = state.sections[Number(m[1])];
+      if (section) { section.price = parseCurrencyInput(value); renderRooms(); recalcTotals(); }
+      return;
+    }
+    if ((m = field.match(/^sections\.(\d+)\.(leftScope|rightScope)\.(\d+)\.text$/))) {
+      const section = state.sections[Number(m[1])];
+      const item = section && section[m[2]][Number(m[3])];
+      if (item) { item.text = value; renderRooms(); }
+      return;
+    }
+    if ((m = field.match(/^clientSupplied\.(\d+)$/))) {
+      const i = Number(m[1]);
+      if (state.clientSupplied[i] !== undefined) { state.clientSupplied[i] = value; renderClientSupplied(); }
+      return;
+    }
+    if ((m = field.match(/^paymentTerms\.lines\.(\d+)\.label$/))) {
+      const line = state.paymentTermLines[Number(m[1])];
+      if (line) { line.label = value; renderPaymentTermLines(); }
+      return;
+    }
+    if ((m = field.match(/^paymentTerms\.lines\.(\d+)\.amount$/))) {
+      const line = state.paymentTermLines[Number(m[1])];
+      if (line) { line.amount = parseCurrencyInput(value); renderPaymentTermLines(); recalcTotals(); }
+    }
+  }
+
+  function applyPreviewStructuralChange(action, payload) {
+    switch (action) {
+      case 'add-room':
+        addRoom();
+        break;
+      case 'remove-room': {
+        const section = state.sections[payload.section];
+        if (section) removeRoom(section.id);
+        break;
+      }
+      case 'add-bullet': {
+        const section = state.sections[payload.section];
+        if (section) addScopeItem(section.id, payload.side, 'bullet');
+        break;
+      }
+      case 'remove-item': {
+        const section = state.sections[payload.section];
+        if (section) removeScopeItem(section.id, payload.side, payload.index);
+        break;
+      }
+      case 'add-client-supplied':
+        addClientSuppliedItem();
+        break;
+      case 'remove-client-supplied':
+        removeClientSuppliedItem(payload.index);
+        break;
+      case 'add-payment-line':
+        addPaymentTermLine();
+        break;
+      case 'remove-payment-line':
+        removePaymentTermLine(payload.index);
+        break;
+      default:
+        return;
+    }
+    // Structural changes reshape the preview's DOM (a row appeared/vanished),
+    // unlike a text edit -- a full re-render is the only reliable way to
+    // reflect that, so (unlike applyPreviewEdit) this does trigger one.
+    previewProposal();
+  }
+
+  window.addEventListener('message', (event) => {
+    const msg = event.data;
+    if (!msg || msg.source !== 'fbpg-preview') return;
+    if (msg.type === 'edit') {
+      applyPreviewEdit(msg.field, msg.value);
+    } else if (msg.type === 'structural') {
+      applyPreviewStructuralChange(msg.action, msg.payload || {});
+    }
+  });
+
+  // Sidebar -> preview: debounced so a fast typist doesn't fire a network
+  // round-trip per keystroke. Structural preview edits above already
+  // trigger their own immediate refresh, independent of this.
+  let previewRefreshTimer = null;
+  function schedulePreviewRefresh() {
+    clearTimeout(previewRefreshTimer);
+    previewRefreshTimer = setTimeout(previewProposal, 600);
+  }
+
   // ---- Preview ----------------------------------------------------------------
 
   async function previewProposal() {
-    const data = collectProposalData();
+    const data = collectProposalData({ forPreview: true });
     if (!data.sections.length) {
       previewFrame.srcdoc = '<p style="font-family:Arial;color:#888;padding:24px;">Add at least one room to see a preview.</p>';
       return;
@@ -619,9 +756,11 @@
 
   el('generateBtn').addEventListener('click', generateProposal);
 
-  // ---- Wire up totals recompute on any input ---------------------------------
+  // ---- Wire up totals recompute + live preview sync on any input -------------
 
   document.addEventListener('input', recalcTotals);
+  document.addEventListener('input', schedulePreviewRefresh);
+  document.addEventListener('change', schedulePreviewRefresh);
 
   async function init() {
     populateSnippetSelects();

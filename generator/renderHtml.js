@@ -1,7 +1,18 @@
 // Shared HTML/CSS template for the proposal. Used two ways:
-//   1. Fed into headless Chromium to print the PDF deliverable.
-//   2. Returned as-is by POST /api/preview for the browser's live preview.
-// There is deliberately no third, browser-only copy of this template.
+//   1. Fed into headless Chromium to print the PDF deliverable
+//      (editable: false, or omitted -- the default).
+//   2. Returned by POST /api/preview for the browser's live preview
+//      (editable: true) -- contenteditable fields + add/remove controls,
+//      bridged back to app.js via postMessage since the preview lives in
+//      an <iframe> (a separate document). See the bridge script and CSS
+//      near the bottom of renderProposalHtml for the wire format:
+//      { source: 'fbpg-preview', type: 'edit', field, value } for text
+//      edits (sent on blur, not on every keystroke, so re-rendering the
+//      sidebar never fights an in-progress edit), and
+//      { source: 'fbpg-preview', type: 'structural', action, payload }
+//      for add/remove (handled in app.js by re-using the exact same
+//      addRoom/removeRoom/addScopeItem/etc. functions the sidebar
+//      buttons already call).
 //
 // Pulls its raw color/font constants from styles.js (the same source the
 // docx builders use) so a brand-color change only happens in one place.
@@ -43,31 +54,69 @@ function esc(value) {
   ));
 }
 
-function renderScopeColumn(items = []) {
-  return items
-    .map((item) => {
-      if (item.type === 'tradeLabel') {
-        return `<div class="trade-label">${esc(item.text)}</div>`;
-      }
-      return `<div class="bullet"><span class="dash">–</span><span>${esc(item.text)}</span></div>`;
-    })
-    .join('');
+// ---- Editable-mode helpers --------------------------------------------
+// Only ever emitted when editable === true; the non-editable (PDF/print)
+// path never sees a contenteditable attribute or a data-action control.
+
+function editableAttrs(field, multiline) {
+  return ` contenteditable="true" data-field="${esc(field)}"${multiline ? ' data-multiline="true"' : ''}`;
 }
 
-function renderSection(section, isHero) {
-  const priceLabel = (section.priceLabel || 'INVESTMENT').toUpperCase();
-  const subtitleHtml = section.subtitle
-    ? `<div class="banner-subtitle">${esc(section.subtitle)}</div>`
-    : '';
+function dataAttrs(payload) {
+  return Object.entries(payload).map(([k, v]) => ` data-${k}="${esc(v)}"`).join('');
+}
+
+function removeControl(action, payload, label) {
+  return `<span class="fbpg-remove" data-action="${esc(action)}"${dataAttrs(payload)}>${label ? `${esc(label)} ` : ''}×</span>`;
+}
+
+function addControl(action, payload, label) {
+  return `<div class="fbpg-add" data-action="${esc(action)}"${dataAttrs(payload)}>+ ${esc(label)}</div>`;
+}
+
+function renderScopeColumn(items = [], editable, sectionIndex, side) {
+  const itemsHtml = items
+    .map((item, i) => {
+      const field = `sections.${sectionIndex}.${side}Scope.${i}.text`;
+      const remove = editable ? removeControl('remove-item', { section: sectionIndex, side, index: i }) : '';
+      if (item.type === 'tradeLabel') {
+        return `<div class="trade-label"><span${editable ? editableAttrs(field) : ''}>${esc(item.text)}</span>${remove}</div>`;
+      }
+      return `<div class="bullet"><span class="dash">–</span><span${editable ? editableAttrs(field) : ''}>${esc(item.text)}</span>${remove}</div>`;
+    })
+    .join('');
+  const addHtml = editable ? addControl('add-bullet', { section: sectionIndex, side }, 'Add bullet') : '';
+  return itemsHtml + addHtml;
+}
+
+function renderSection(section, isHero, editable, sectionIndex) {
+  const priceLabel = section.priceLabel || 'INVESTMENT';
+  const titleField = `sections.${sectionIndex}.title`;
+  const subtitleField = `sections.${sectionIndex}.subtitle`;
+  const priceLabelField = `sections.${sectionIndex}.priceLabel`;
+  const priceField = `sections.${sectionIndex}.price`;
+
+  const titleHtml = editable
+    ? `<span${editableAttrs(titleField)}>${esc(section.title || '')}</span>`
+    : esc(section.title || '');
+  const subtitleHtml = editable
+    ? `<div class="banner-subtitle"${editableAttrs(subtitleField)}>${esc(section.subtitle || '')}</div>`
+    : (section.subtitle ? `<div class="banner-subtitle">${esc(section.subtitle)}</div>` : '');
+  const priceLabelHtml = editable
+    ? `<span${editableAttrs(priceLabelField)}>${esc(priceLabel)}</span>`
+    : esc(priceLabel);
+  const priceAmountHtml = editable
+    ? `<span${editableAttrs(priceField)}>${esc(formatCurrency(section.price))}</span>`
+    : esc(formatCurrency(section.price));
 
   const bannerHtml = isHero
     ? `
     <table class="banner banner-hero">
       <tr>
-        <td class="banner-title hero">${esc(section.title || '')}${subtitleHtml}</td>
+        <td class="banner-title hero">${titleHtml}${subtitleHtml}</td>
         <td class="banner-price hero">
-          <div class="investment-label hero">${esc(priceLabel)}</div>
-          <div class="investment-amount hero">${esc(formatCurrency(section.price))}</div>
+          <div class="investment-label hero">${priceLabelHtml}</div>
+          <div class="investment-amount hero">${priceAmountHtml}</div>
         </td>
       </tr>
     </table>
@@ -76,32 +125,49 @@ function renderSection(section, isHero) {
     <table class="banner">
       <tr>
         <td class="badge">${esc(String(section.num).padStart(2, '0'))}</td>
-        <td class="banner-title">${esc(section.title || '')}${subtitleHtml}</td>
+        <td class="banner-title">${titleHtml}${subtitleHtml}</td>
         <td class="banner-price">
-          <div class="investment-label">${esc(priceLabel)}</div>
-          <div class="investment-amount">${esc(formatCurrency(section.price))}</div>
+          <div class="investment-label">${priceLabelHtml}</div>
+          <div class="investment-amount">${priceAmountHtml}</div>
         </td>
       </tr>
     </table>
   `;
 
+  const roomControlsHtml = editable
+    ? `<div class="fbpg-room-controls">${removeControl('remove-room', { section: sectionIndex }, 'Remove Room')}</div>`
+    : '';
+
   return `
-    ${bannerHtml}
-    <table class="scope">
-      <tr>
-        <td class="scope-col">${renderScopeColumn(section.leftScope)}</td>
-        <td class="divider"></td>
-        <td class="scope-col">${renderScopeColumn(section.rightScope)}</td>
-      </tr>
-    </table>
+    <div class="fbpg-room">
+      ${roomControlsHtml}
+      ${bannerHtml}
+      <table class="scope">
+        <tr>
+          <td class="scope-col">${renderScopeColumn(section.leftScope, editable, sectionIndex, 'left')}</td>
+          <td class="divider"></td>
+          <td class="scope-col">${renderScopeColumn(section.rightScope, editable, sectionIndex, 'right')}</td>
+        </tr>
+      </table>
+    </div>
   `;
 }
 
-function renderClientSupplied(items = []) {
-  if (!items.length) return '';
+function renderClientSupplied(items = [], editable) {
+  if (!items.length && !editable) return '';
+  const itemsHtml = items
+    .map((t, i) => `
+      <div class="bullet">
+        <span class="dash">–</span>
+        <span${editable ? editableAttrs(`clientSupplied.${i}`) : ''}>${esc(t)}</span>
+        ${editable ? removeControl('remove-client-supplied', { index: i }) : ''}
+      </div>
+    `)
+    .join('');
   return `
     <div class="section-label">Client-Supplied Items</div>
-    ${items.map((t) => `<div class="bullet"><span class="dash">–</span><span>${esc(t)}</span></div>`).join('')}
+    ${itemsHtml}
+    ${editable ? addControl('add-client-supplied', {}, 'Add item') : ''}
   `;
 }
 
@@ -110,7 +176,23 @@ function renderClientSupplied(items = []) {
 // bordered/tinted boxes sandwiching the dark investment/payment box read as
 // a busy stack of competing containers. The investment/payment box is the
 // one deliberate "box" left in the document.
-function renderLabeledTextBlock(heading, bodyText, extraClass) {
+//
+// In editable mode this becomes one free-text contenteditable block (real
+// newlines, no per-line dash prefix) rather than the dash-bulleted lines
+// the final PDF/docx renders -- simpler to sync line edits/adds/removes as
+// plain text than to keep an array of line-divs in lockstep. The polished
+// bulleted look comes back the moment editable is off (i.e. in the actual
+// generated files).
+function renderLabeledTextBlock(heading, bodyText, field, editable, extraClass) {
+  if (editable) {
+    return `
+      <div class="notes-block${extraClass ? ` ${extraClass}` : ''}">
+        <div class="notes-heading">${esc(heading)}</div>
+        <div class="notes-text"${editableAttrs(field, true)}>${esc(bodyText || '')}</div>
+      </div>
+    `;
+  }
+
   if (!bodyText || !bodyText.trim()) return '';
   const lines = bodyText.split('\n').map((l) => l.trim()).filter(Boolean);
   const body =
@@ -125,35 +207,103 @@ function renderLabeledTextBlock(heading, bodyText, extraClass) {
   `;
 }
 
-function renderNotes(notesText) {
-  return renderLabeledTextBlock('Additional Notes & Exclusions', notesText);
+function renderNotes(notesText, editable) {
+  return renderLabeledTextBlock('Additional Notes & Exclusions', notesText, 'notes', editable);
 }
 
-function renderTerms(termsText) {
-  return renderLabeledTextBlock('Terms & Conditions', termsText, 'terms-box');
+function renderTerms(termsText, editable) {
+  return renderLabeledTextBlock('Terms & Conditions', termsText, 'termsAndConditions', editable, 'terms-box');
 }
 
-function renderPaymentTerms(paymentTerms) {
+function renderPaymentTerms(paymentTerms, editable) {
   const { lines, note } = paymentTerms;
+  const linesHtml = lines
+    .map((line, i) => `
+      <div class="payment-terms-line">
+        <span class="payment-terms-label"${editable ? editableAttrs(`paymentTerms.lines.${i}.label`) : ''}>${esc(line.label)}</span>
+        <span class="payment-terms-amount"${editable ? editableAttrs(`paymentTerms.lines.${i}.amount`) : ''}>${esc(formatCurrency(line.amount))}</span>
+        ${editable ? removeControl('remove-payment-line', { index: i }) : ''}
+      </div>
+    `)
+    .join('');
+  const noteHtml = editable
+    ? `<div class="payment-terms-note"${editableAttrs('paymentTerms.note', true)}>${esc(note || '')}</div>`
+    : (note ? `<div class="payment-terms-note">${esc(note)}</div>` : '');
   return `
     <td class="commitment-box payment-terms-box">
       <div class="commitment-label">PAYMENT TERMS</div>
-      ${lines
-        .map(
-          (line) => `
-        <div class="payment-terms-line">
-          <span class="payment-terms-label">${esc(line.label)}</span>
-          <span class="payment-terms-amount">${esc(formatCurrency(line.amount))}</span>
-        </div>
-      `,
-        )
-        .join('')}
-      ${note ? `<div class="payment-terms-note">${esc(note)}</div>` : ''}
+      ${linesHtml}
+      ${editable ? addControl('add-payment-line', {}, 'Add line') : ''}
+      ${noteHtml}
     </td>
   `;
 }
 
-function renderProposalHtml(data) {
+// Bridges edits made inside this <iframe> document back to app.js in the
+// parent window. Text edits post on blur/Enter (not on every keystroke) so
+// a debounced sidebar-triggered re-render never yanks focus mid-edit; the
+// add/remove controls post immediately on click.
+function renderEditableBridgeScript() {
+  return `
+  <script>
+  (function() {
+    function post(msg) {
+      window.parent.postMessage(Object.assign({ source: 'fbpg-preview' }, msg), '*');
+    }
+
+    document.addEventListener('focusout', function(e) {
+      var el = e.target;
+      if (el && el.hasAttribute && el.hasAttribute('data-field') && el.getAttribute('contenteditable') === 'true') {
+        post({ type: 'edit', field: el.getAttribute('data-field'), value: el.innerText });
+      }
+    }, true);
+
+    document.addEventListener('keydown', function(e) {
+      var el = e.target;
+      if (el && el.hasAttribute && el.hasAttribute('data-field') && el.getAttribute('contenteditable') === 'true') {
+        if (e.key === 'Enter' && el.getAttribute('data-multiline') !== 'true') {
+          e.preventDefault();
+          el.blur();
+        }
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      e.preventDefault();
+      var payload = {};
+      ['section', 'side', 'index'].forEach(function(key) {
+        var v = btn.getAttribute('data-' + key);
+        if (v !== null) payload[key] = (v !== '' && !isNaN(v)) ? Number(v) : v;
+      });
+      post({ type: 'structural', action: btn.getAttribute('data-action'), payload: payload });
+    });
+  })();
+  </script>
+  `;
+}
+
+function renderEditableStyles() {
+  return `
+  /* min-width/min-height matter: an empty contenteditable span has zero
+     box size by default and is otherwise unclickable -- there'd be
+     nothing to click to start typing into a just-added empty bullet. */
+  [contenteditable="true"] { display: inline-block; min-width: 24px; min-height: 1.2em; outline: none; border-radius: 2px; cursor: text; transition: background 0.15s; }
+  [contenteditable="true"]:hover { background: rgba(217, 79, 12, 0.06); }
+  [contenteditable="true"]:focus { background: rgba(217, 79, 12, 0.1); box-shadow: 0 0 0 1px rgba(217, 79, 12, 0.45); }
+  div[contenteditable="true"] { display: block; min-width: auto; }
+  .fbpg-remove { cursor: pointer; color: #b3261e; font-size: 8pt; font-weight: bold; margin-left: 8px; opacity: 0.35; user-select: none; white-space: nowrap; }
+  .fbpg-remove:hover { opacity: 1; }
+  .fbpg-add { cursor: pointer; display: inline-block; color: ${ORANGE}; font-size: 9pt; font-weight: bold; margin: 6px 0; user-select: none; }
+  .fbpg-add:hover { text-decoration: underline; }
+  .fbpg-room { position: relative; margin-bottom: 4px; }
+  .fbpg-room-controls { text-align: right; margin-bottom: 4px; }
+  .fbpg-add-room { margin: 12px 0; }
+  `;
+}
+
+function renderProposalHtml(data, { editable = false } = {}) {
   const {
     client, sections = [], clientSupplied = [], notes = '', totalLabel = '', totalAmount, investmentNote,
     proposalNum, date, updated, paymentTerms, expirationDate, termsAndConditions,
@@ -231,14 +381,14 @@ function renderProposalHtml(data) {
      buildLabeledTextBlock comment for why. */
   .notes-block { margin: 20px 0; }
   .notes-heading { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 7px; margin-bottom: 10px; }
-  .notes-text, .notes-block .bullet { font-style: italic; color: ${GRAY}; font-size: 9.5pt; }
+  .notes-text, .notes-block .bullet { font-style: italic; color: ${GRAY}; font-size: 9.5pt; white-space: pre-wrap; }
 
   .totals-table { margin: 24px 0; }
   .investment-box { background: ${NAVY_DARK}; color: #fff; padding: 24px; width: 50%; vertical-align: middle; }
   .investment-box-label { color: #bfd4ee; font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
   .investment-box-sub { color: #bfd4ee; font-size: 11pt; margin-bottom: 12px; }
   .investment-box-amount { font-family: ${ACCENT_FONT}, serif; color: #fff; font-size: 34pt; margin-top: 2px; }
-  .investment-box-note { color: #bfd4ee; font-style: italic; font-size: 9pt; margin-top: 10px; }
+  .investment-box-note { color: #bfd4ee; font-style: italic; font-size: 9pt; margin-top: 10px; white-space: pre-wrap; }
   .commitment-box { background: ${NOTES_BG}; padding: 24px; width: 50%; vertical-align: middle; }
   .commitment-label { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
   .commitment-text { font-style: italic; color: ${GRAY}; font-size: 10pt; }
@@ -246,7 +396,7 @@ function renderProposalHtml(data) {
   .payment-terms-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 5px; }
   .payment-terms-label { color: ${GRAY}; }
   .payment-terms-amount { color: ${NAVY_DARK}; font-weight: bold; }
-  .payment-terms-note { font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 10px; }
+  .payment-terms-note { font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 10px; white-space: pre-wrap; }
 
   .expiration-line { text-align: center; font-style: italic; color: ${GRAY}; font-size: 9pt; margin: 6px 0 10px; }
 
@@ -260,6 +410,8 @@ function renderProposalHtml(data) {
   .signature-cell { width: 47%; }
   .signature-line { border-bottom: 1pt solid ${LGRAY}; height: 30px; }
   .signature-caption { color: ${LGRAY}; font-size: 8pt; letter-spacing: 0.5px; margin-top: 5px; }
+
+  ${editable ? renderEditableStyles() : ''}
 </style>
 </head>
 <body>
@@ -276,41 +428,51 @@ function renderProposalHtml(data) {
     <tr>
       <td>
         <div class="meta-label">Prepared For</div>
-        <div class="meta-value client-name">${esc(client.name)}</div>
-        <div class="meta-value">${esc([client.phone, client.email].filter(Boolean).join('  •  '))}</div>
+        <div class="meta-value client-name"${editable ? editableAttrs('client.name') : ''}>${esc(client.name)}</div>
+        <div class="meta-value">
+          ${editable
+            ? `<span${editableAttrs('client.phone')}>${esc(client.phone || '')}</span>  •  <span${editableAttrs('client.email')}>${esc(client.email || '')}</span>`
+            : esc([client.phone, client.email].filter(Boolean).join('  •  '))}
+        </div>
       </td>
       <td>
-        <div class="meta-label">PROPERTY</div>
-        <div class="meta-value">${esc(client.address)}</div>
+        <div class="meta-label">Property</div>
+        <div class="meta-value"${editable ? editableAttrs('client.address') : ''}>${esc(client.address)}</div>
       </td>
       <td>
-        <div class="meta-label">PROPOSAL NO.</div>
-        <div class="meta-value">${esc(proposalNum)}</div>
+        <div class="meta-label">Proposal No.</div>
+        <div class="meta-value"${editable ? editableAttrs('proposalNum') : ''}>${esc(proposalNum)}</div>
       </td>
       <td>
-        <div class="meta-label">DATE</div>
-        <div class="meta-value">${esc(date)}</div>
+        <div class="meta-label">Date</div>
+        <div class="meta-value"${editable ? editableAttrs('date') : ''}>${esc(date)}</div>
       </td>
     </tr>
   </table>
   <hr class="meta-rule">
 
-  ${sections.map((s) => renderSection(s, sections.length === 1)).join('')}
+  ${sections.map((s, i) => renderSection(s, sections.length === 1, editable, i)).join('')}
 
-  ${renderClientSupplied(clientSupplied)}
-  ${renderNotes(notes)}
+  ${editable ? `<div class="fbpg-add-room">${addControl('add-room', {}, 'Add Room')}</div>` : ''}
+
+  ${renderClientSupplied(clientSupplied, editable)}
+  ${renderNotes(notes, editable)}
 
   <table class="totals-table">
     <tr>
       <td class="investment-box">
         <div class="investment-box-label">TOTAL PROJECT INVESTMENT</div>
-        ${totalLabel ? `<div class="investment-box-sub">${esc(totalLabel)}</div>` : ''}
+        ${editable
+          ? `<div class="investment-box-sub"${editableAttrs('totalLabel')}>${esc(totalLabel)}</div>`
+          : (totalLabel ? `<div class="investment-box-sub">${esc(totalLabel)}</div>` : '')}
         <div class="investment-box-amount">${esc(formatCurrency(totalAmount))}</div>
-        ${investmentNote ? `<div class="investment-box-note">${esc(investmentNote)}</div>` : ''}
+        ${editable
+          ? `<div class="investment-box-note"${editableAttrs('investmentNote', true)}>${esc(investmentNote || '')}</div>`
+          : (investmentNote ? `<div class="investment-box-note">${esc(investmentNote)}</div>` : '')}
       </td>
       ${
         paymentTerms
-          ? renderPaymentTerms(paymentTerms)
+          ? renderPaymentTerms(paymentTerms, editable)
           : `
       <td class="commitment-box">
         <div class="commitment-label">OUR COMMITMENT</div>
@@ -321,7 +483,7 @@ function renderProposalHtml(data) {
     </tr>
   </table>
 
-  ${renderTerms(termsAndConditions)}
+  ${renderTerms(termsAndConditions, editable)}
 
   <hr class="footer-rule">
   <table class="contact-table">
@@ -342,7 +504,7 @@ function renderProposalHtml(data) {
   </table>
   <div class="address-line">${esc(CONTACT.address)}</div>
 
-  ${expirationDate ? `<div class="expiration-line">This proposal is valid until ${esc(expirationDate)}. Pricing is subject to change after this date.</div>` : ''}
+  ${(expirationDate || editable) ? `<div class="expiration-line">This proposal is valid until ${editable ? `<span${editableAttrs('expirationDate')}>${esc(expirationDate || '')}</span>` : esc(expirationDate)}. Pricing is subject to change after this date.</div>` : ''}
 
   <table class="signature-table">
     <tr>
@@ -357,6 +519,8 @@ function renderProposalHtml(data) {
       </td>
     </tr>
   </table>
+
+  ${editable ? renderEditableBridgeScript() : ''}
 
 </body>
 </html>`;
