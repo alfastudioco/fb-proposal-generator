@@ -468,6 +468,75 @@
 
   el('addRoomBtn').addEventListener('click', addRoom);
 
+  // ---- Draft an entire proposal from one plain-language description ---------
+  //
+  // Appends AI-drafted rooms to whatever's already on the form (unlike the
+  // QuickBooks import, this doesn't reset the proposal) -- it's meant as a
+  // fast starting point for a from-scratch proposal, one paragraph instead
+  // of adding rooms and running "Generate Scope" one at a time.
+
+  el('draftFullProposalBtn').addEventListener('click', async () => {
+    const textarea = el('fullProjectDescription');
+    const statusEl = el('fullProposalStatus');
+    const description = textarea.value.trim();
+    if (!description) {
+      statusEl.textContent = 'Describe the project first.';
+      statusEl.className = 'room-scope-status error';
+      return;
+    }
+
+    statusEl.textContent = 'Drafting full proposal — this can take a minute…';
+    statusEl.className = 'room-scope-status';
+
+    try {
+      const res = await fetch('/api/generate-full-proposal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        statusEl.textContent = body.error || 'Drafting failed.';
+        statusEl.className = 'room-scope-status error';
+        return;
+      }
+
+      for (const s of body.sections || []) {
+        const { left, right } = splitSnippetItems(s.items || []);
+        state.sections.push({
+          id: nextSectionId(),
+          title: s.title || '',
+          subtitle: '',
+          price: Number(s.price) || 0,
+          priceLabel: '',
+          description: '',
+          scopeStatus: null,
+          leftScope: left,
+          rightScope: right,
+        });
+      }
+      if (body.notes) {
+        const notesEl = el('notes');
+        notesEl.value = notesEl.value.trim() ? `${notesEl.value.trim()}\n${body.notes}` : body.notes;
+      }
+      if (Array.isArray(body.clientSupplied)) {
+        state.clientSupplied.push(...body.clientSupplied);
+      }
+
+      textarea.value = '';
+      statusEl.textContent = body.priceRationale || 'Done — review pricing and scope before generating.';
+      statusEl.className = 'room-scope-status';
+
+      renderRooms();
+      renderClientSupplied();
+      recalcTotals();
+      previewProposal();
+    } catch (err) {
+      statusEl.textContent = `Drafting failed: ${err.message}`;
+      statusEl.className = 'room-scope-status error';
+    }
+  });
+
   // ---- Client-supplied items -----------------------------------------------
 
   function addClientSuppliedItem() {

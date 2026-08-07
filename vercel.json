@@ -12,6 +12,9 @@
     },
     "api/import-quickbooks.js": {
       "maxDuration": 60
+    },
+    "api/generate-full-proposal.js": {
+      "maxDuration": 60
     }
   }
 }
