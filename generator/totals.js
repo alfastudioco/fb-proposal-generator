@@ -1,6 +1,6 @@
 const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType, TabStopType } = require('docx');
 const {
-  NAVY, NAVY_DARK, GRAY, NOTES_BG, FONT,
+  NAVY, NAVY_DARK, GRAY, NOTES_BG, FONT, ACCENT_FONT,
   COL_WIDTHS, pt, spacingPt, cellBorders, shade, formatCurrency,
 } = require('./styles');
 
@@ -11,11 +11,11 @@ const COMMITMENT_TEXT =
 function investmentCell(totalLabel, totalAmount, note) {
   const children = [
     new Paragraph({
-      spacing: { after: spacingPt(6) },
+      spacing: { after: spacingPt(8) },
       children: [
         new TextRun({
           text: 'TOTAL PROJECT INVESTMENT',
-          font: FONT, size: pt(10), bold: true, color: 'BFD4EE', characterSpacing: 10,
+          font: FONT, size: pt(9), bold: true, color: 'BFD4EE', characterSpacing: 12,
         }),
       ],
     }),
@@ -24,7 +24,7 @@ function investmentCell(totalLabel, totalAmount, note) {
   if (totalLabel) {
     children.push(
       new Paragraph({
-        spacing: { after: spacingPt(10) },
+        spacing: { after: spacingPt(12) },
         children: [new TextRun({ text: totalLabel, font: FONT, size: pt(11), color: 'BFD4EE' })],
       }),
     );
@@ -32,8 +32,8 @@ function investmentCell(totalLabel, totalAmount, note) {
 
   children.push(
     new Paragraph({
-      spacing: { after: note ? spacingPt(8) : 0 },
-      children: [new TextRun({ text: formatCurrency(totalAmount), font: FONT, size: pt(36), bold: true, color: 'FFFFFF' })],
+      spacing: { after: note ? spacingPt(10) : 0 },
+      children: [new TextRun({ text: formatCurrency(totalAmount), font: ACCENT_FONT, size: pt(34), color: 'FFFFFF' })],
     }),
   );
 
@@ -49,7 +49,7 @@ function investmentCell(totalLabel, totalAmount, note) {
     width: { size: COL_WIDTHS.investment[0], type: WidthType.DXA },
     shading: shade(NAVY_DARK),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 260, bottom: 260, left: 300, right: 300 },
+    margins: { top: 380, bottom: 380, left: 380, right: 380 },
     borders: cellBorders(),
     children,
   });
@@ -60,13 +60,13 @@ function commitmentCell() {
     width: { size: COL_WIDTHS.investment[1], type: WidthType.DXA },
     shading: shade(NOTES_BG),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 260, bottom: 260, left: 300, right: 300 },
+    margins: { top: 380, bottom: 380, left: 380, right: 380 },
     borders: cellBorders(),
     children: [
       new Paragraph({
-        spacing: { after: spacingPt(8) },
+        spacing: { after: spacingPt(10) },
         children: [
-          new TextRun({ text: 'OUR COMMITMENT', font: FONT, size: pt(10), bold: true, color: NAVY, characterSpacing: 10 }),
+          new TextRun({ text: 'OUR COMMITMENT', font: FONT, size: pt(9), bold: true, color: NAVY, characterSpacing: 12 }),
         ],
       }),
       new Paragraph({
@@ -98,9 +98,9 @@ function buildPaymentTermsBox(paymentTerms) {
 
   const children = [
     new Paragraph({
-      spacing: { after: spacingPt(8) },
+      spacing: { after: spacingPt(10) },
       children: [
-        new TextRun({ text: 'PAYMENT TERMS', font: FONT, size: pt(10), bold: true, color: NAVY, characterSpacing: 10 }),
+        new TextRun({ text: 'PAYMENT TERMS', font: FONT, size: pt(9), bold: true, color: NAVY, characterSpacing: 12 }),
       ],
     }),
   ];
@@ -131,7 +131,7 @@ function buildPaymentTermsBox(paymentTerms) {
     width: { size: COL_WIDTHS.investment[1], type: WidthType.DXA },
     shading: shade(NOTES_BG),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 260, bottom: 260, left: 300, right: 300 },
+    margins: { top: 380, bottom: 380, left: 380, right: 380 },
     borders: cellBorders(),
     children,
   });

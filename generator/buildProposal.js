@@ -91,16 +91,16 @@ async function buildProposal(proposalData) {
         hero: isSingleSection,
       }),
     );
-    children.push(spacer(120));
+    children.push(spacer(160));
     children.push(buildTwoColumnScope({ leftScope: section.leftScope || [], rightScope: section.rightScope || [] }));
-    children.push(spacer(240));
+    children.push(spacer(280));
   }
 
   children.push(...buildClientSuppliedItems(data.clientSupplied));
-  if (data.clientSupplied.length) children.push(spacer(80));
+  if (data.clientSupplied.length) children.push(spacer(100));
 
   children.push(...buildNotesBox(data.notes));
-  if (data.notes && data.notes.trim()) children.push(spacer(80));
+  if (data.notes && data.notes.trim()) children.push(spacer(100));
 
   children.push(
     buildInvestmentAndCommitmentBox({
@@ -110,13 +110,13 @@ async function buildProposal(proposalData) {
       paymentTerms: data.paymentTerms,
     }),
   );
-  children.push(spacer(240));
+  children.push(spacer(280));
 
   children.push(...buildTermsBox(data.termsAndConditions));
-  if (data.termsAndConditions && data.termsAndConditions.trim()) children.push(spacer(80));
+  if (data.termsAndConditions && data.termsAndConditions.trim()) children.push(spacer(100));
 
   children.push(...buildContactFooter());
-  children.push(spacer(240));
+  children.push(spacer(280));
 
   if (data.expirationDate) {
     children.push(buildExpirationLine(data.expirationDate));

@@ -4,7 +4,7 @@ const {
 } = require('docx');
 const {
   NAVY, NAVY_DARK, NAVY_LITE, ORANGE, GRAY, LGRAY, BULLET_TEXT_COLOR,
-  FONT, COL_WIDTHS, FULL_WIDTH_DXA,
+  FONT, ACCENT_FONT, COL_WIDTHS, FULL_WIDTH_DXA,
   pt, spacingPt, cellBorders, thinBorder, thickBorder, shade, formatCurrency,
 } = require('./styles');
 
@@ -61,8 +61,8 @@ function buildHeader(logoBuffer, { updated = false } = {}) {
   });
 
   const rule = new Paragraph({
-    spacing: { before: spacingPt(6), after: spacingPt(10) },
-    border: { bottom: thickBorder(ORANGE, 6) },
+    spacing: { before: spacingPt(10), after: spacingPt(20) },
+    border: { bottom: thinBorder(ORANGE) },
     children: [],
   });
 
@@ -70,27 +70,39 @@ function buildHeader(logoBuffer, { updated = false } = {}) {
 }
 
 // ---- 4.2 Meta bar -------------------------------------------------------
+//
+// Clean whitespace with a hairline divider between each field, not a solid
+// tinted block -- reads calmer than a filled bar. `accentFirstLine` gives
+// the "Prepared For" cell's client name a serif treatment (a small,
+// deliberate luxury touch); every other cell stays plain.
 
-function metaCell(label, lines, width) {
+function metaCell(label, lines, width, { isFirst = false, accentFirstLine = false } = {}) {
   const valueParagraphs = lines
     .filter(Boolean)
-    .map(
-      (line, i) =>
-        new Paragraph({
-          spacing: { after: i === lines.length - 1 ? 0 : spacingPt(1) },
-          children: [new TextRun({ text: line, font: FONT, size: pt(9.5), bold: i === 0, color: NAVY })],
-        }),
-    );
+    .map((line, i) => {
+      const useAccent = accentFirstLine && i === 0;
+      return new Paragraph({
+        spacing: { after: i === lines.length - 1 ? 0 : spacingPt(useAccent ? 3 : 1) },
+        children: [
+          new TextRun({
+            text: line,
+            font: useAccent ? ACCENT_FONT : FONT,
+            size: useAccent ? pt(13) : pt(9.5),
+            bold: useAccent ? false : i === 0,
+            color: NAVY,
+          }),
+        ],
+      });
+    });
 
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
-    shading: shade(NAVY_LITE),
-    borders: cellBorders(),
-    margins: { top: 140, bottom: 140, left: 160, right: 160 },
+    borders: cellBorders(isFirst ? {} : { left: thinBorder('E4E4E4') }),
+    margins: { top: 100, bottom: 100, left: isFirst ? 0 : 260, right: 260 },
     children: [
       new Paragraph({
-        spacing: { after: spacingPt(3) },
-        children: [new TextRun({ text: label, font: FONT, size: pt(8), bold: true, color: GRAY, characterSpacing: 10 })],
+        spacing: { after: spacingPt(4) },
+        children: [new TextRun({ text: label.toUpperCase(), font: FONT, size: pt(7.5), bold: true, color: GRAY, characterSpacing: 12 })],
       }),
       ...valueParagraphs,
     ],
@@ -106,22 +118,20 @@ function buildMetaBar({ client, proposalNum, date }) {
       new TableRow({
         cantSplit: true,
         children: [
-          metaCell('PREPARED FOR', [client.name, [client.phone, client.email].filter(Boolean).join('  •  ')], w1),
-          metaCell('PROPERTY', [client.address], w2),
-          metaCell('PROPOSAL NO.', [proposalNum], w3),
-          metaCell('DATE', [date], w4),
+          metaCell('Prepared For', [client.name, [client.phone, client.email].filter(Boolean).join('  •  ')], w1, { isFirst: true, accentFirstLine: true }),
+          metaCell('Property', [client.address], w2),
+          metaCell('Proposal No.', [proposalNum], w3),
+          metaCell('Date', [date], w4),
         ],
       }),
     ],
   });
 
-  const rule = new Paragraph({
-    spacing: { before: spacingPt(2), after: spacingPt(14) },
-    border: { bottom: thinBorder(NAVY) },
-    children: [],
-  });
+  // No hard bottom rule -- the hairline column dividers plus generous
+  // whitespace already delineate the bar without adding another block edge.
+  const spacerAfter = new Paragraph({ spacing: { after: spacingPt(16) }, children: [] });
 
-  return [table, rule];
+  return [table, spacerAfter];
 }
 
 // ---- 4.3 Section banner --------------------------------------------------
@@ -129,9 +139,9 @@ function buildMetaBar({ client, proposalNum, date }) {
 function titleCellChildren(title, subtitle) {
   const children = [
     new Paragraph({
-      spacing: subtitle ? { after: spacingPt(2) } : undefined,
+      spacing: subtitle ? { after: spacingPt(4) } : undefined,
       children: [
-        new TextRun({ text: title.toUpperCase(), font: FONT, size: pt(18), bold: true, color: 'FFFFFF', characterSpacing: 10 }),
+        new TextRun({ text: title, font: ACCENT_FONT, size: pt(22), color: 'FFFFFF' }),
       ],
     }),
   ];
@@ -150,16 +160,20 @@ function titleCellChildren(title, subtitle) {
 function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
   const [wBadge, wTitle, wPrice] = COL_WIDTHS.banner;
 
+  // Light outline rather than a solid orange fill -- one strong dark block
+  // per section (the title cell) reads as a more deliberate, confident
+  // anchor than several competing solid fills.
   const badgeCell = new TableCell({
     width: { size: wBadge, type: WidthType.DXA },
-    shading: shade(ORANGE),
     verticalAlign: VerticalAlign.CENTER,
-    borders: cellBorders(),
+    borders: cellBorders({
+      top: thinBorder(ORANGE), bottom: thinBorder(ORANGE), left: thinBorder(ORANGE), right: thinBorder(ORANGE),
+    }),
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({ text: String(num).padStart(2, '0'), font: FONT, size: pt(16), bold: true, color: 'FFFFFF' }),
+          new TextRun({ text: String(num).padStart(2, '0'), font: ACCENT_FONT, size: pt(15), color: ORANGE }),
         ],
       }),
     ],
@@ -169,7 +183,7 @@ function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
     width: { size: wTitle, type: WidthType.DXA },
     shading: shade(NAVY_DARK),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 120, bottom: 120, left: 220, right: 220 },
+    margins: { top: 200, bottom: 200, left: 260, right: 260 },
     borders: cellBorders(),
     children: titleCellChildren(title, subtitle),
   });
@@ -178,17 +192,17 @@ function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
     width: { size: wPrice, type: WidthType.DXA },
     shading: shade(NAVY_LITE),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 120, bottom: 120, left: 220, right: 220 },
+    margins: { top: 200, bottom: 200, left: 260, right: 260 },
     borders: cellBorders(),
     children: [
       new Paragraph({
         alignment: AlignmentType.RIGHT,
         spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(8), bold: true, color: GRAY, characterSpacing: 10 })],
+        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(7.5), bold: true, color: GRAY, characterSpacing: 12 })],
       }),
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        children: [new TextRun({ text: formatCurrency(price), font: FONT, size: pt(14), bold: true, color: NAVY })],
+        children: [new TextRun({ text: formatCurrency(price), font: ACCENT_FONT, size: pt(17), color: NAVY })],
       }),
     ],
   });
@@ -210,7 +224,7 @@ function buildHeroBanner({ title, subtitle, price, priceLabel }) {
     width: { size: wTitle, type: WidthType.DXA },
     shading: shade(NAVY_DARK),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 120, bottom: 120, left: 220, right: 220 },
+    margins: { top: 200, bottom: 200, left: 260, right: 260 },
     borders: cellBorders(),
     children: titleCellChildren(title, subtitle),
   });
@@ -219,17 +233,17 @@ function buildHeroBanner({ title, subtitle, price, priceLabel }) {
     width: { size: wPrice, type: WidthType.DXA },
     shading: shade(ORANGE),
     verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 120, bottom: 120, left: 220, right: 220 },
+    margins: { top: 200, bottom: 200, left: 260, right: 260 },
     borders: cellBorders(),
     children: [
       new Paragraph({
         alignment: AlignmentType.RIGHT,
         spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(8), bold: true, color: 'FFFFFF', characterSpacing: 15 })],
+        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(7.5), bold: true, color: 'FFFFFF', characterSpacing: 12 })],
       }),
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        children: [new TextRun({ text: formatCurrency(price), font: FONT, size: pt(14), bold: true, color: 'FFFFFF' })],
+        children: [new TextRun({ text: formatCurrency(price), font: ACCENT_FONT, size: pt(17), color: 'FFFFFF' })],
       }),
     ],
   });
@@ -272,7 +286,7 @@ function scopeColumnCell(items, width) {
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
     borders: cellBorders(),
-    margins: { top: 100, bottom: 100, left: 0, right: 160 },
+    margins: { top: 100, bottom: 100, left: 0, right: 200 },
     children: children.length ? children : [new Paragraph({ children: [] })],
   });
 }

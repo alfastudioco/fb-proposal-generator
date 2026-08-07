@@ -22,6 +22,11 @@ const NOTES_BG = 'F4F7FB';
 const BULLET_TEXT_COLOR = '1A1A1A';
 
 const FONT = 'Arial';
+// Reserved for a small, deliberate set of "hero" moments (section title,
+// client name, dollar amounts) -- not sprinkled across every italic aside
+// the way it previously was. Georgia specifically because it's a safe,
+// widely-available serif on both Word (any version) and any OS Chromium
+// runs on, without needing font embedding to render consistently.
 const ACCENT_FONT = 'Georgia';
 
 // Letter page, twips (spec 10.1)
@@ -34,7 +39,7 @@ const PAGE = {
 const FULL_WIDTH_DXA = 10080;
 
 const COL_WIDTHS = {
-  twoColSplit: [4940, 100, 4940],
+  twoColSplit: [4990, 20, 4990],
   banner: [720, 6480, 2880],
   // Single-section "hero" banner variant (spec confirmed against real
   // reference proposals: Mike Nash, Michelle Finch, Meghan Hamann) --

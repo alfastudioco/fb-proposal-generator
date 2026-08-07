@@ -25,7 +25,7 @@ const GRAY = `#${rawStyles.GRAY}`;
 const LGRAY = `#${rawStyles.LGRAY}`;
 const NOTES_BG = `#${rawStyles.NOTES_BG}`;
 const BULLET_TEXT_COLOR = `#${rawStyles.BULLET_TEXT_COLOR}`;
-const { FONT, formatCurrency } = rawStyles;
+const { FONT, ACCENT_FONT, formatCurrency } = rawStyles;
 
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo_rgb.png');
 
@@ -64,7 +64,7 @@ function renderSection(section, isHero) {
     ? `
     <table class="banner banner-hero">
       <tr>
-        <td class="banner-title hero">${esc((section.title || '').toUpperCase())}${subtitleHtml}</td>
+        <td class="banner-title hero">${esc(section.title || '')}${subtitleHtml}</td>
         <td class="banner-price hero">
           <div class="investment-label hero">${esc(priceLabel)}</div>
           <div class="investment-amount hero">${esc(formatCurrency(section.price))}</div>
@@ -76,7 +76,7 @@ function renderSection(section, isHero) {
     <table class="banner">
       <tr>
         <td class="badge">${esc(String(section.num).padStart(2, '0'))}</td>
-        <td class="banner-title">${esc((section.title || '').toUpperCase())}${subtitleHtml}</td>
+        <td class="banner-title">${esc(section.title || '')}${subtitleHtml}</td>
         <td class="banner-price">
           <div class="investment-label">${esc(priceLabel)}</div>
           <div class="investment-amount">${esc(formatCurrency(section.price))}</div>
@@ -169,7 +169,7 @@ function renderProposalHtml(data) {
     font-family: ${FONT}, sans-serif;
     color: #1a1a1a;
     margin: 0;
-    padding: 24px 32px;
+    padding: 32px 40px;
     font-size: 10pt;
   }
   table { width: 100%; border-collapse: collapse; }
@@ -187,73 +187,79 @@ function renderProposalHtml(data) {
     page-break-inside: avoid;
   }
 
-  .header-table td { padding-bottom: 4px; }
+  .header-table td { padding-bottom: 6px; }
   .logo { height: 50px; }
   .header-right { text-align: right; color: ${NAVY}; font-weight: bold; font-size: 11pt; letter-spacing: 1.5px; }
-  .header-rule { border: none; border-top: 6pt solid ${ORANGE}; margin: 6pt 0 10pt; }
+  .header-rule { border: none; border-top: 2pt solid ${ORANGE}; margin: 10pt 0 20pt; }
 
-  .meta-bar { margin-bottom: 4px; }
-  .meta-bar td { background: ${NAVY_LITE}; padding: 8px 10px; width: 25%; }
-  .meta-label { color: ${GRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 2px; }
-  .meta-value { color: ${NAVY}; font-size: 9.5pt; font-weight: bold; }
-  .meta-rule { border: none; border-bottom: 1pt solid ${NAVY}; margin: 2px 0 14px; }
+  /* Refined rather than a solid tinted block -- clean whitespace with a
+     hairline divider between each field reads calmer than a filled bar. */
+  .meta-bar td { padding: 4px 20px; width: 25%; border-left: 1pt solid #e4e4e4; }
+  .meta-bar td:first-child { padding-left: 0; border-left: none; }
+  .meta-label { color: ${GRAY}; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .meta-value { color: ${NAVY}; font-size: 10pt; font-weight: bold; }
+  .meta-value.client-name { font-family: ${ACCENT_FONT}, serif; font-size: 13pt; font-weight: normal; margin-bottom: 2px; }
+  .meta-rule { display: none; }
 
-  .banner { margin-top: 6px; }
-  .badge { background: ${ORANGE}; color: #fff; font-weight: bold; font-size: 16pt; text-align: center; width: 60px; padding: 10px; }
-  .banner-title { background: ${NAVY_DARK}; color: #fff; font-weight: bold; font-size: 18pt; letter-spacing: 0.5px; padding: 10px 16px; }
-  .banner-subtitle { color: #bfd4ee; font-weight: normal; font-size: 9.5pt; letter-spacing: normal; margin-top: 2px; }
-  .banner-price { background: ${NAVY_LITE}; text-align: right; padding: 10px 16px; width: 24%; }
-  .investment-label { color: ${GRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; }
-  .investment-amount { color: ${NAVY}; font-size: 14pt; font-weight: bold; }
+  .banner { margin: 20px 0 0; }
+  /* Numbered badge is now a light outline rather than a solid orange
+     square -- one strong dark block per section (the title cell) reads as
+     a more deliberate, confident anchor than several competing fills. */
+  .badge { background: #fff; border: 1pt solid ${ORANGE}; color: ${ORANGE}; font-family: ${ACCENT_FONT}, serif; font-weight: normal; font-size: 15pt; text-align: center; width: 56px; padding: 10px; }
+  .banner-title { background: ${NAVY_DARK}; color: #fff; font-family: ${ACCENT_FONT}, serif; font-weight: normal; font-size: 22pt; letter-spacing: 0.2px; padding: 20px 26px; }
+  .banner-subtitle { font-family: ${FONT}, sans-serif; color: #bfd4ee; font-weight: normal; font-size: 9.5pt; letter-spacing: normal; margin-top: 4px; }
+  .banner-price { background: ${NAVY_LITE}; text-align: right; padding: 20px 26px; width: 24%; }
+  .investment-label { color: ${GRAY}; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+  .investment-amount { font-family: ${ACCENT_FONT}, serif; color: ${NAVY}; font-size: 17pt; margin-top: 2px; }
   /* Single-section "hero" banner variant (spec confirmed against real
      reference proposals): no numbered badge, orange price cell. */
   .banner-price.hero { background: ${ORANGE}; }
   .investment-label.hero { color: #fff; }
   .investment-amount.hero { color: #fff; }
 
-  .scope { margin: 8px 0 16px; }
-  .scope-col { width: 49%; vertical-align: top; padding-right: 12px; }
-  .divider { width: 2%; background: #d9d9d9; }
-  .trade-label { color: ${NAVY}; font-size: 9.5pt; font-weight: bold; margin: 10px 0 5px; }
+  .scope { margin: 16px 0 24px; }
+  .scope-col { width: 49.8%; vertical-align: top; padding-right: 20px; }
+  .divider { width: 1px; background: #d9d9d9; }
+  .trade-label { color: ${NAVY}; font-size: 9.5pt; font-weight: bold; margin: 12px 0 6px; }
   .trade-label:first-child { margin-top: 0; }
-  .bullet { display: flex; gap: 6px; font-size: 9pt; color: ${BULLET_TEXT_COLOR}; margin-bottom: 6px; }
+  .bullet { display: flex; gap: 6px; font-size: 9pt; color: ${BULLET_TEXT_COLOR}; margin-bottom: 7px; }
   .dash { color: ${NAVY}; font-weight: bold; }
 
-  .section-label { color: ${NAVY}; font-size: 10.5pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 4px; margin: 14px 0 8px; }
+  .section-label { color: ${NAVY}; font-size: 10.5pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 5px; margin: 20px 0 10px; }
 
   /* Plain labeled text block, not a box -- see generator/sections.js's
      buildLabeledTextBlock comment for why. */
-  .notes-block { margin: 16px 0; }
-  .notes-heading { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 6px; margin-bottom: 8px; }
+  .notes-block { margin: 20px 0; }
+  .notes-heading { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 7px; margin-bottom: 10px; }
   .notes-text, .notes-block .bullet { font-style: italic; color: ${GRAY}; font-size: 9.5pt; }
 
-  .totals-table { margin: 16px 0; }
-  .investment-box { background: ${NAVY_DARK}; color: #fff; padding: 16px; width: 50%; vertical-align: middle; }
-  .investment-box-label { color: #bfd4ee; font-size: 10pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; }
-  .investment-box-sub { color: #bfd4ee; font-size: 11pt; margin-bottom: 10px; }
-  .investment-box-amount { color: #fff; font-size: 36pt; font-weight: bold; }
-  .investment-box-note { color: #bfd4ee; font-style: italic; font-size: 9pt; margin-top: 8px; }
-  .commitment-box { background: ${NOTES_BG}; padding: 16px; width: 50%; vertical-align: middle; }
-  .commitment-label { color: ${NAVY}; font-size: 10pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .totals-table { margin: 24px 0; }
+  .investment-box { background: ${NAVY_DARK}; color: #fff; padding: 24px; width: 50%; vertical-align: middle; }
+  .investment-box-label { color: #bfd4ee; font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .investment-box-sub { color: #bfd4ee; font-size: 11pt; margin-bottom: 12px; }
+  .investment-box-amount { font-family: ${ACCENT_FONT}, serif; color: #fff; font-size: 34pt; margin-top: 2px; }
+  .investment-box-note { color: #bfd4ee; font-style: italic; font-size: 9pt; margin-top: 10px; }
+  .commitment-box { background: ${NOTES_BG}; padding: 24px; width: 50%; vertical-align: middle; }
+  .commitment-label { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
   .commitment-text { font-style: italic; color: ${GRAY}; font-size: 10pt; }
 
-  .payment-terms-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 4px; }
+  .payment-terms-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 5px; }
   .payment-terms-label { color: ${GRAY}; }
   .payment-terms-amount { color: ${NAVY_DARK}; font-weight: bold; }
-  .payment-terms-note { font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 8px; }
+  .payment-terms-note { font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 10px; }
 
-  .expiration-line { text-align: center; font-style: italic; color: ${GRAY}; font-size: 9pt; margin: 4px 0 8px; }
+  .expiration-line { text-align: center; font-style: italic; color: ${GRAY}; font-size: 9pt; margin: 6px 0 10px; }
 
-  .footer-rule { border: none; border-top: 1pt solid ${LGRAY}; margin: 16px 0 8px; }
+  .footer-rule { border: none; border-top: 1pt solid ${LGRAY}; margin: 24px 0 12px; }
   .contact-table td { width: 33%; padding-right: 16px; }
-  .contact-label { color: ${GRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .contact-label { color: ${GRAY}; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
   .contact-value { color: ${NAVY}; font-size: 10pt; font-weight: bold; }
-  .address-line { color: ${GRAY}; font-size: 9pt; margin-top: 4px; }
+  .address-line { color: ${GRAY}; font-size: 9pt; margin-top: 5px; }
 
-  .signature-table { margin-top: 24px; }
+  .signature-table { margin-top: 32px; }
   .signature-cell { width: 47%; }
   .signature-line { border-bottom: 1pt solid ${LGRAY}; height: 30px; }
-  .signature-caption { color: ${LGRAY}; font-size: 8pt; letter-spacing: 0.5px; margin-top: 4px; }
+  .signature-caption { color: ${LGRAY}; font-size: 8pt; letter-spacing: 0.5px; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -269,8 +275,8 @@ function renderProposalHtml(data) {
   <table class="meta-bar">
     <tr>
       <td>
-        <div class="meta-label">PREPARED FOR</div>
-        <div class="meta-value">${esc(client.name)}</div>
+        <div class="meta-label">Prepared For</div>
+        <div class="meta-value client-name">${esc(client.name)}</div>
         <div class="meta-value">${esc([client.phone, client.email].filter(Boolean).join('  •  '))}</div>
       </td>
       <td>
