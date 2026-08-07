@@ -97,10 +97,10 @@ async function buildProposal(proposalData) {
   }
 
   children.push(...buildClientSuppliedItems(data.clientSupplied));
-  if (data.clientSupplied.length) children.push(spacer(160));
+  if (data.clientSupplied.length) children.push(spacer(80));
 
   children.push(...buildNotesBox(data.notes));
-  if (data.notes && data.notes.trim()) children.push(spacer(200));
+  if (data.notes && data.notes.trim()) children.push(spacer(80));
 
   children.push(
     buildInvestmentAndCommitmentBox({
@@ -113,7 +113,7 @@ async function buildProposal(proposalData) {
   children.push(spacer(240));
 
   children.push(...buildTermsBox(data.termsAndConditions));
-  if (data.termsAndConditions && data.termsAndConditions.trim()) children.push(spacer(200));
+  if (data.termsAndConditions && data.termsAndConditions.trim()) children.push(spacer(80));
 
   children.push(...buildContactFooter());
   children.push(spacer(240));

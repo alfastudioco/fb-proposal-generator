@@ -1,5 +1,5 @@
 const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType } = require('docx');
-const { NAVY, ORANGE, GRAY, LGRAY, ACCENT_FONT, FONT, COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder } = require('./styles');
+const { NAVY, GRAY, LGRAY, FONT, COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder } = require('./styles');
 
 const CONTACT = {
   phone: '(847) 962-8955',
@@ -16,7 +16,7 @@ function contactCell(label, value, width) {
     children: [
       new Paragraph({
         spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: label, font: FONT, size: pt(8), bold: true, color: ORANGE, characterSpacing: 20 })],
+        children: [new TextRun({ text: label, font: FONT, size: pt(8), bold: true, color: GRAY, characterSpacing: 10 })],
       }),
       new Paragraph({
         children: [new TextRun({ text: value, font: FONT, size: pt(10), bold: true, color: NAVY })],
@@ -63,7 +63,7 @@ function buildExpirationLine(expirationDate) {
     children: [
       new TextRun({
         text: `This proposal is valid until ${expirationDate}. Pricing is subject to change after this date.`,
-        font: ACCENT_FONT,
+        font: FONT,
         italics: true,
         size: pt(9),
         color: GRAY,

@@ -105,7 +105,11 @@ const numberingConfig = {
           text: '–',
           alignment: AlignmentType.LEFT,
           style: {
-            run: { font: FONT, size: pt(18), color: ORANGE, bold: true },
+            // Navy rather than orange -- orange was previously repeated on
+            // every bullet, every trade label, and every section heading
+            // throughout the document; restrained to a few deliberate
+            // accents (badge, hero price panel, header rule) elsewhere.
+            run: { font: FONT, size: pt(16), color: NAVY, bold: true },
             paragraph: { indent: { left: 520, hanging: 260 } },
           },
         },

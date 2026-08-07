@@ -3,8 +3,8 @@ const {
   WidthType, VerticalAlign, AlignmentType,
 } = require('docx');
 const {
-  NAVY, NAVY_DARK, NAVY_LITE, ORANGE, GRAY, NOTES_BG, BULLET_TEXT_COLOR,
-  FONT, ACCENT_FONT, COL_WIDTHS, FULL_WIDTH_DXA,
+  NAVY, NAVY_DARK, NAVY_LITE, ORANGE, GRAY, LGRAY, BULLET_TEXT_COLOR,
+  FONT, COL_WIDTHS, FULL_WIDTH_DXA,
   pt, spacingPt, cellBorders, thinBorder, thickBorder, shade, formatCurrency,
 } = require('./styles');
 
@@ -90,7 +90,7 @@ function metaCell(label, lines, width) {
     children: [
       new Paragraph({
         spacing: { after: spacingPt(3) },
-        children: [new TextRun({ text: label, font: FONT, size: pt(8), bold: true, color: ORANGE, characterSpacing: 15 })],
+        children: [new TextRun({ text: label, font: FONT, size: pt(8), bold: true, color: GRAY, characterSpacing: 10 })],
       }),
       ...valueParagraphs,
     ],
@@ -184,7 +184,7 @@ function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
       new Paragraph({
         alignment: AlignmentType.RIGHT,
         spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(8), bold: true, color: ORANGE, characterSpacing: 15 })],
+        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(8), bold: true, color: GRAY, characterSpacing: 10 })],
       }),
       new Paragraph({
         alignment: AlignmentType.RIGHT,
@@ -255,7 +255,7 @@ function renderScopeItems(items = []) {
       return new Paragraph({
         spacing: { before: spacingPt(10), after: spacingPt(5) },
         children: [
-          new TextRun({ text: item.text.toUpperCase(), font: FONT, size: pt(9.5), bold: true, color: ORANGE, characterSpacing: 15 }),
+          new TextRun({ text: item.text, font: FONT, size: pt(9.5), bold: true, color: NAVY }),
         ],
       });
     }
@@ -309,10 +309,10 @@ function buildTwoColumnScope({ leftScope, rightScope }) {
 
 function buildSectionLabel(text) {
   return new Paragraph({
-    spacing: { before: spacingPt(14), after: spacingPt(3) },
-    border: { bottom: thickBorder(ORANGE, 1.5) },
+    spacing: { before: spacingPt(8), after: spacingPt(4) },
+    border: { bottom: thinBorder(LGRAY) },
     children: [
-      new TextRun({ text: text.toUpperCase(), font: FONT, size: pt(11), bold: true, color: NAVY, characterSpacing: 15 }),
+      new TextRun({ text, font: FONT, size: pt(10.5), bold: true, color: NAVY, characterSpacing: 5 }),
     ],
   });
 }
@@ -332,12 +332,27 @@ function buildClientSuppliedItems(items = []) {
   return [buildSectionLabel('Client-Supplied Items'), ...bullets];
 }
 
-// ---- 4.5 Notes box --------------------------------------------------------
+// ---- 4.5 Notes & terms & conditions ---------------------------------------
+//
+// Plain labeled text blocks, not boxes -- previously both of these used the
+// same heavy bordered/tinted box treatment, which sandwiched the dark
+// investment/payment box between two near-identical light boxes and read as
+// a busy stack of competing containers. The investment/payment box is the
+// one deliberate "box" left in the document; everything else uses
+// typography and a hairline rule for hierarchy instead.
 
-function buildNotesBox(notesText) {
-  if (!notesText || !notesText.trim()) return [];
+function buildLabeledTextBlock(heading, bodyText) {
+  if (!bodyText || !bodyText.trim()) return [];
 
-  const lines = notesText.split('\n').map((l) => l.trim()).filter(Boolean);
+  const lines = bodyText.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  const headingParagraph = new Paragraph({
+    spacing: { before: spacingPt(8), after: spacingPt(6) },
+    border: { bottom: thinBorder(LGRAY) },
+    children: [
+      new TextRun({ text: heading, font: FONT, size: pt(9), bold: true, color: NAVY, characterSpacing: 5 }),
+    ],
+  });
 
   const bodyParagraphs =
     lines.length > 1
@@ -346,104 +361,24 @@ function buildNotesBox(notesText) {
             new Paragraph({
               numbering: { reference: 'sq', level: 0 },
               spacing: { after: spacingPt(5) },
-              children: [new TextRun({ text: line, font: ACCENT_FONT, italics: true, size: pt(9.5), color: GRAY })],
+              children: [new TextRun({ text: line, font: FONT, italics: true, size: pt(9.5), color: GRAY })],
             }),
         )
       : [
           new Paragraph({
-            children: [new TextRun({ text: lines[0] || '', font: ACCENT_FONT, italics: true, size: pt(9.5), color: GRAY })],
+            children: [new TextRun({ text: lines[0] || '', font: FONT, italics: true, size: pt(9.5), color: GRAY })],
           }),
         ];
 
-  const cell = new TableCell({
-    width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
-    shading: shade(NOTES_BG),
-    borders: cellBorders({
-      top: thinBorder(NAVY),
-      bottom: thinBorder(NAVY),
-      right: thinBorder(NAVY),
-      left: thickBorder(ORANGE, 18),
-    }),
-    margins: { top: 160, bottom: 160, left: 220, right: 220 },
-    children: [
-      new Paragraph({
-        spacing: { after: spacingPt(8) },
-        border: { bottom: thinBorder(ORANGE) },
-        children: [
-          new TextRun({
-            text: 'ADDITIONAL NOTES & EXCLUSIONS', font: FONT, size: pt(10), bold: true, color: ORANGE,
-            characterSpacing: 15, underline: {},
-          }),
-        ],
-      }),
-      ...bodyParagraphs,
-    ],
-  });
-
-  const table = new Table({
-    width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
-    columnWidths: [FULL_WIDTH_DXA],
-    rows: [new TableRow({ cantSplit: true, children: [cell] })],
-  });
-
-  return [table];
+  return [headingParagraph, ...bodyParagraphs];
 }
 
-// ---- Terms & conditions box -----------------------------------------------
+function buildNotesBox(notesText) {
+  return buildLabeledTextBlock('Additional Notes & Exclusions', notesText);
+}
 
 function buildTermsBox(termsText) {
-  if (!termsText || !termsText.trim()) return [];
-
-  const lines = termsText.split('\n').map((l) => l.trim()).filter(Boolean);
-
-  const bodyParagraphs =
-    lines.length > 1
-      ? lines.map(
-          (line) =>
-            new Paragraph({
-              numbering: { reference: 'sq', level: 0 },
-              spacing: { after: spacingPt(5) },
-              children: [new TextRun({ text: line, font: ACCENT_FONT, italics: true, size: pt(9.5), color: GRAY })],
-            }),
-        )
-      : [
-          new Paragraph({
-            children: [new TextRun({ text: lines[0] || '', font: ACCENT_FONT, italics: true, size: pt(9.5), color: GRAY })],
-          }),
-        ];
-
-  const cell = new TableCell({
-    width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
-    shading: shade(NOTES_BG),
-    borders: cellBorders({
-      top: thinBorder(NAVY),
-      bottom: thinBorder(NAVY),
-      right: thinBorder(NAVY),
-      left: thickBorder(ORANGE, 18),
-    }),
-    margins: { top: 160, bottom: 160, left: 220, right: 220 },
-    children: [
-      new Paragraph({
-        spacing: { after: spacingPt(8) },
-        border: { bottom: thinBorder(ORANGE) },
-        children: [
-          new TextRun({
-            text: 'TERMS & CONDITIONS', font: FONT, size: pt(10), bold: true, color: ORANGE,
-            characterSpacing: 15, underline: {},
-          }),
-        ],
-      }),
-      ...bodyParagraphs,
-    ],
-  });
-
-  const table = new Table({
-    width: { size: FULL_WIDTH_DXA, type: WidthType.DXA },
-    columnWidths: [FULL_WIDTH_DXA],
-    rows: [new TableRow({ cantSplit: true, children: [cell] })],
-  });
-
-  return [table];
+  return buildLabeledTextBlock('Terms & Conditions', termsText);
 }
 
 module.exports = {

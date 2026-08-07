@@ -1,7 +1,7 @@
 const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType, TabStopType } = require('docx');
 const {
-  NAVY_DARK, ORANGE, GRAY, NOTES_BG, FONT, ACCENT_FONT,
-  COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder, shade, formatCurrency,
+  NAVY, NAVY_DARK, GRAY, NOTES_BG, FONT,
+  COL_WIDTHS, pt, spacingPt, cellBorders, shade, formatCurrency,
 } = require('./styles');
 
 const COMMITMENT_TEXT =
@@ -15,7 +15,7 @@ function investmentCell(totalLabel, totalAmount, note) {
       children: [
         new TextRun({
           text: 'TOTAL PROJECT INVESTMENT',
-          font: FONT, size: pt(10), bold: true, color: 'BFD4EE', characterSpacing: 20,
+          font: FONT, size: pt(10), bold: true, color: 'BFD4EE', characterSpacing: 10,
         }),
       ],
     }),
@@ -40,7 +40,7 @@ function investmentCell(totalLabel, totalAmount, note) {
   if (note) {
     children.push(
       new Paragraph({
-        children: [new TextRun({ text: note, font: ACCENT_FONT, italics: true, size: pt(9), color: 'BFD4EE' })],
+        children: [new TextRun({ text: note, font: FONT, italics: true, size: pt(9), color: 'BFD4EE' })],
       }),
     );
   }
@@ -61,21 +61,16 @@ function commitmentCell() {
     shading: shade(NOTES_BG),
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 260, bottom: 260, left: 300, right: 300 },
-    borders: cellBorders({
-      top: thinBorder('1B3A6B'),
-      bottom: thinBorder('1B3A6B'),
-      right: thinBorder('1B3A6B'),
-      left: thinBorder('1B3A6B'),
-    }),
+    borders: cellBorders(),
     children: [
       new Paragraph({
         spacing: { after: spacingPt(8) },
         children: [
-          new TextRun({ text: 'OUR COMMITMENT', font: FONT, size: pt(11), bold: true, color: ORANGE, characterSpacing: 20 }),
+          new TextRun({ text: 'OUR COMMITMENT', font: FONT, size: pt(10), bold: true, color: NAVY, characterSpacing: 10 }),
         ],
       }),
       new Paragraph({
-        children: [new TextRun({ text: COMMITMENT_TEXT, font: ACCENT_FONT, italics: true, size: pt(10), color: GRAY })],
+        children: [new TextRun({ text: COMMITMENT_TEXT, font: FONT, italics: true, size: pt(10), color: GRAY })],
       }),
     ],
   });
@@ -105,7 +100,7 @@ function buildPaymentTermsBox(paymentTerms) {
     new Paragraph({
       spacing: { after: spacingPt(8) },
       children: [
-        new TextRun({ text: 'PAYMENT TERMS', font: FONT, size: pt(11), bold: true, color: ORANGE, characterSpacing: 20 }),
+        new TextRun({ text: 'PAYMENT TERMS', font: FONT, size: pt(10), bold: true, color: NAVY, characterSpacing: 10 }),
       ],
     }),
   ];
@@ -116,7 +111,7 @@ function buildPaymentTermsBox(paymentTerms) {
         spacing: { after: i === lines.length - 1 ? 0 : spacingPt(4) },
         tabStops: [{ type: TabStopType.RIGHT, position: 4200 }],
         children: [
-          new TextRun({ text: line.label, font: ACCENT_FONT, size: pt(10), color: GRAY }),
+          new TextRun({ text: line.label, font: FONT, size: pt(10), color: GRAY }),
           new TextRun({ text: `\t${formatCurrency(line.amount)}`, font: FONT, size: pt(10), bold: true, color: NAVY_DARK }),
         ],
       }),
@@ -127,7 +122,7 @@ function buildPaymentTermsBox(paymentTerms) {
     children.push(
       new Paragraph({
         spacing: { before: spacingPt(8) },
-        children: [new TextRun({ text: note, font: ACCENT_FONT, italics: true, size: pt(9), color: GRAY })],
+        children: [new TextRun({ text: note, font: FONT, italics: true, size: pt(9), color: GRAY })],
       }),
     );
   }
@@ -137,12 +132,7 @@ function buildPaymentTermsBox(paymentTerms) {
     shading: shade(NOTES_BG),
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 260, bottom: 260, left: 300, right: 300 },
-    borders: cellBorders({
-      top: thinBorder('1B3A6B'),
-      bottom: thinBorder('1B3A6B'),
-      right: thinBorder('1B3A6B'),
-      left: thinBorder('1B3A6B'),
-    }),
+    borders: cellBorders(),
     children,
   });
 }

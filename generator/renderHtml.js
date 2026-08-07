@@ -25,7 +25,7 @@ const GRAY = `#${rawStyles.GRAY}`;
 const LGRAY = `#${rawStyles.LGRAY}`;
 const NOTES_BG = `#${rawStyles.NOTES_BG}`;
 const BULLET_TEXT_COLOR = `#${rawStyles.BULLET_TEXT_COLOR}`;
-const { FONT, ACCENT_FONT, formatCurrency } = rawStyles;
+const { FONT, formatCurrency } = rawStyles;
 
 const LOGO_PATH = path.join(__dirname, '..', 'assets', 'logo_rgb.png');
 
@@ -105,34 +105,32 @@ function renderClientSupplied(items = []) {
   `;
 }
 
-function renderNotes(notesText) {
-  if (!notesText || !notesText.trim()) return '';
-  const lines = notesText.split('\n').map((l) => l.trim()).filter(Boolean);
+// Plain labeled text blocks, not boxes -- see the matching comment in
+// generator/sections.js's buildLabeledTextBlock for why: two identical
+// bordered/tinted boxes sandwiching the dark investment/payment box read as
+// a busy stack of competing containers. The investment/payment box is the
+// one deliberate "box" left in the document.
+function renderLabeledTextBlock(heading, bodyText, extraClass) {
+  if (!bodyText || !bodyText.trim()) return '';
+  const lines = bodyText.split('\n').map((l) => l.trim()).filter(Boolean);
   const body =
     lines.length > 1
-      ? lines.map((l) => `<div class="bullet"><span class="dash">–</span><span>${esc(l)}</span></div>`).join('')
+      ? lines.map((l) => `<div class="bullet notes-text"><span class="dash">–</span><span>${esc(l)}</span></div>`).join('')
       : `<div class="notes-text">${esc(lines[0] || '')}</div>`;
   return `
-    <div class="notes-box">
-      <div class="notes-heading">ADDITIONAL NOTES &amp; EXCLUSIONS</div>
+    <div class="notes-block${extraClass ? ` ${extraClass}` : ''}">
+      <div class="notes-heading">${esc(heading)}</div>
       ${body}
     </div>
   `;
 }
 
+function renderNotes(notesText) {
+  return renderLabeledTextBlock('Additional Notes & Exclusions', notesText);
+}
+
 function renderTerms(termsText) {
-  if (!termsText || !termsText.trim()) return '';
-  const lines = termsText.split('\n').map((l) => l.trim()).filter(Boolean);
-  const body =
-    lines.length > 1
-      ? lines.map((l) => `<div class="bullet"><span class="dash">–</span><span>${esc(l)}</span></div>`).join('')
-      : `<div class="notes-text">${esc(lines[0] || '')}</div>`;
-  return `
-    <div class="notes-box terms-box">
-      <div class="notes-heading">TERMS &amp; CONDITIONS</div>
-      ${body}
-    </div>
-  `;
+  return renderLabeledTextBlock('Terms & Conditions', termsText, 'terms-box');
 }
 
 function renderPaymentTerms(paymentTerms) {
@@ -180,10 +178,10 @@ function renderProposalHtml(data) {
   /* Keeps each of these boxed sections intact across a PDF page boundary --
      without this, Chromium's print engine can split a box mid-content the
      same way Word can split a table row (see cantSplit in generator/*.js).
-     Deliberately excludes .scope -- a long scope list needs to be able to
-     paginate normally, or it'd get pushed whole to the next page with a
-     large blank gap whenever it's just short of fitting. */
-  .header-table, .meta-bar, .banner, .notes-box, .terms-box,
+     Deliberately excludes .scope and .notes-block -- long-form content
+     needs to be able to paginate normally, or it'd get pushed whole to the
+     next page with a large blank gap whenever it's just short of fitting. */
+  .header-table, .meta-bar, .banner,
   .totals-table, .contact-table, .signature-table {
     break-inside: avoid;
     page-break-inside: avoid;
@@ -196,7 +194,7 @@ function renderProposalHtml(data) {
 
   .meta-bar { margin-bottom: 4px; }
   .meta-bar td { background: ${NAVY_LITE}; padding: 8px 10px; width: 25%; }
-  .meta-label { color: ${ORANGE}; font-size: 8pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; }
+  .meta-label { color: ${GRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 2px; }
   .meta-value { color: ${NAVY}; font-size: 9.5pt; font-weight: bold; }
   .meta-rule { border: none; border-bottom: 1pt solid ${NAVY}; margin: 2px 0 14px; }
 
@@ -205,7 +203,7 @@ function renderProposalHtml(data) {
   .banner-title { background: ${NAVY_DARK}; color: #fff; font-weight: bold; font-size: 18pt; letter-spacing: 0.5px; padding: 10px 16px; }
   .banner-subtitle { color: #bfd4ee; font-weight: normal; font-size: 9.5pt; letter-spacing: normal; margin-top: 2px; }
   .banner-price { background: ${NAVY_LITE}; text-align: right; padding: 10px 16px; width: 24%; }
-  .investment-label { color: ${ORANGE}; font-size: 8pt; font-weight: bold; letter-spacing: 1px; }
+  .investment-label { color: ${GRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; }
   .investment-amount { color: ${NAVY}; font-size: 14pt; font-weight: bold; }
   /* Single-section "hero" banner variant (spec confirmed against real
      reference proposals): no numbered badge, orange price cell. */
@@ -216,39 +214,39 @@ function renderProposalHtml(data) {
   .scope { margin: 8px 0 16px; }
   .scope-col { width: 49%; vertical-align: top; padding-right: 12px; }
   .divider { width: 2%; background: #d9d9d9; }
-  .trade-label { color: ${ORANGE}; font-size: 9.5pt; font-weight: bold; letter-spacing: 1px; margin: 10px 0 5px; }
+  .trade-label { color: ${NAVY}; font-size: 9.5pt; font-weight: bold; margin: 10px 0 5px; }
   .trade-label:first-child { margin-top: 0; }
   .bullet { display: flex; gap: 6px; font-size: 9pt; color: ${BULLET_TEXT_COLOR}; margin-bottom: 6px; }
-  .dash { color: ${ORANGE}; font-weight: bold; }
+  .dash { color: ${NAVY}; font-weight: bold; }
 
-  .section-label { color: ${NAVY}; font-size: 11pt; font-weight: bold; letter-spacing: 1px; border-bottom: 1.5pt solid ${ORANGE}; padding-bottom: 3px; margin: 14px 0 8px; }
+  .section-label { color: ${NAVY}; font-size: 10.5pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 4px; margin: 14px 0 8px; }
 
-  .notes-box { background: ${NOTES_BG}; border: 1pt solid ${NAVY}; border-left: 18pt solid ${ORANGE}; padding: 12px 16px; margin: 16px 0; }
-  .notes-heading { color: ${ORANGE}; font-size: 10pt; font-weight: bold; letter-spacing: 1px; text-decoration: underline; border-bottom: 1pt solid ${ORANGE}; padding-bottom: 6px; margin-bottom: 8px; }
-  .notes-text, .notes-box .bullet { font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 9.5pt; }
+  /* Plain labeled text block, not a box -- see generator/sections.js's
+     buildLabeledTextBlock comment for why. */
+  .notes-block { margin: 16px 0; }
+  .notes-heading { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 6px; margin-bottom: 8px; }
+  .notes-text, .notes-block .bullet { font-style: italic; color: ${GRAY}; font-size: 9.5pt; }
 
   .totals-table { margin: 16px 0; }
   .investment-box { background: ${NAVY_DARK}; color: #fff; padding: 16px; width: 50%; vertical-align: middle; }
-  .investment-box-label { color: #bfd4ee; font-size: 10pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
+  .investment-box-label { color: #bfd4ee; font-size: 10pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 4px; }
   .investment-box-sub { color: #bfd4ee; font-size: 11pt; margin-bottom: 10px; }
   .investment-box-amount { color: #fff; font-size: 36pt; font-weight: bold; }
-  .investment-box-note { color: #bfd4ee; font-family: ${ACCENT_FONT}, serif; font-style: italic; font-size: 9pt; margin-top: 8px; }
-  .commitment-box { background: ${NOTES_BG}; border: 1pt solid ${NAVY}; padding: 16px; width: 50%; vertical-align: middle; }
-  .commitment-label { color: ${ORANGE}; font-size: 11pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 8px; }
-  .commitment-text { font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 10pt; }
+  .investment-box-note { color: #bfd4ee; font-style: italic; font-size: 9pt; margin-top: 8px; }
+  .commitment-box { background: ${NOTES_BG}; padding: 16px; width: 50%; vertical-align: middle; }
+  .commitment-label { color: ${NAVY}; font-size: 10pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .commitment-text { font-style: italic; color: ${GRAY}; font-size: 10pt; }
 
   .payment-terms-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 4px; }
-  .payment-terms-label { font-family: ${ACCENT_FONT}, serif; color: ${GRAY}; }
+  .payment-terms-label { color: ${GRAY}; }
   .payment-terms-amount { color: ${NAVY_DARK}; font-weight: bold; }
-  .payment-terms-note { font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 8px; }
+  .payment-terms-note { font-style: italic; color: ${GRAY}; font-size: 9pt; margin-top: 8px; }
 
-  .terms-box { margin-top: 16px; }
-
-  .expiration-line { text-align: center; font-family: ${ACCENT_FONT}, serif; font-style: italic; color: ${GRAY}; font-size: 9pt; margin: 4px 0 8px; }
+  .expiration-line { text-align: center; font-style: italic; color: ${GRAY}; font-size: 9pt; margin: 4px 0 8px; }
 
   .footer-rule { border: none; border-top: 1pt solid ${LGRAY}; margin: 16px 0 8px; }
   .contact-table td { width: 33%; padding-right: 16px; }
-  .contact-label { color: ${ORANGE}; font-size: 8pt; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; }
+  .contact-label { color: ${GRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 0.5px; margin-bottom: 2px; }
   .contact-value { color: ${NAVY}; font-size: 10pt; font-weight: bold; }
   .address-line { color: ${GRAY}; font-size: 9pt; margin-top: 4px; }
 
