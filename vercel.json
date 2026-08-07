@@ -9,6 +9,9 @@
     },
     "api/generate-scope.js": {
       "maxDuration": 30
+    },
+    "api/import-quickbooks.js": {
+      "maxDuration": 60
     }
   }
 }

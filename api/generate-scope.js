@@ -1,6 +1,5 @@
 const { getAnthropicClient } = require('../lib/anthropic');
-const { getSupabaseClient } = require('../lib/supabase');
-const SNIPPET_LIBRARY = require('../snippets');
+const { buildSnippetContext, getComparablePricing } = require('../lib/proposalContext');
 
 const MODEL = 'claude-sonnet-5';
 
@@ -29,51 +28,6 @@ const GENERATE_TOOL = {
   },
 };
 
-function buildSnippetContext() {
-  return SNIPPET_LIBRARY.categories
-    .map((cat) => {
-      const lines = cat.items.map((it) => (it.type === 'tradeLabel' ? `  [${it.text}]` : `  - ${it.text}`));
-      return `${cat.label}:\n${lines.join('\n')}`;
-    })
-    .join('\n\n');
-}
-
-function pickComparablePricing(proposals, description, roomTitle) {
-  const words = `${description} ${roomTitle || ''}`
-    .toLowerCase()
-    .split(/[^a-z]+/)
-    .filter((w) => w.length > 3);
-  if (!words.length) return [];
-
-  const candidates = [];
-  for (const proposal of proposals) {
-    for (const section of proposal.sections || []) {
-      if (!section || !section.title || typeof section.price !== 'number') continue;
-      const title = section.title.toLowerCase();
-      if (words.some((w) => title.includes(w))) {
-        candidates.push({ title: section.title, price: section.price });
-      }
-    }
-  }
-  return candidates.slice(0, 8);
-}
-
-async function getComparablePricing(description, roomTitle) {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('fbpg_proposals')
-      .select('sections')
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (error) throw error;
-    return pickComparablePricing(data, description, roomTitle);
-  } catch (err) {
-    console.error('Comparable pricing lookup failed (non-fatal):', err);
-    return [];
-  }
-}
-
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -86,7 +40,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: 'description is required' });
   }
 
-  const comparable = await getComparablePricing(description, roomTitle);
+  const comparable = await getComparablePricing(`${description} ${roomTitle || ''}`);
   const comparableText = comparable.length
     ? comparable.map((c) => `- ${c.title}: $${c.price.toLocaleString('en-US')}`).join('\n')
     : '(no comparable past sections found)';

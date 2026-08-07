@@ -143,6 +143,109 @@
     }
   });
 
+  // ---- Import an entire proposal from a QuickBooks PDF -----------------------
+
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read the file'));
+      reader.onload = () => resolve(reader.result.slice(reader.result.indexOf(',') + 1));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Wholesale-replaces the current form/state with an AI-extracted QuickBooks
+  // proposal -- this is a "start a new proposal" action, not a merge, so any
+  // in-progress edits to the current form are discarded.
+  function loadImportedProposal(data) {
+    state.editingId = null;
+    state.clientId = null;
+    state.paymentTermLines = [];
+
+    el('clientName').value = (data.client && data.client.name) || '';
+    el('propertyAddress').value = (data.client && data.client.address) || '';
+    el('clientPhone').value = (data.client && data.client.phone) || '';
+    el('clientEmail').value = (data.client && data.client.email) || '';
+    el('proposalNum').value = data.proposalNum || String(Date.now()).slice(-4);
+    el('proposalDate').value = new Date().toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+    el('timeline').value = '';
+    el('notes').value = data.notes || '';
+    el('totalLabel').value = '';
+    el('investmentNote').value = '';
+    el('expirationDate').value = '';
+    el('termsAndConditions').value = '';
+    el('paymentTermsToggle').checked = false;
+    el('paymentTermsPanel').classList.add('is-hidden');
+
+    state.sections = (data.sections || []).map((s) => {
+      const { left, right } = splitSnippetItems(s.items || []);
+      return {
+        id: nextSectionId(),
+        title: s.title || '',
+        subtitle: '',
+        price: Number(s.price) || 0,
+        priceLabel: '',
+        description: '',
+        scopeStatus: null,
+        leftScope: left,
+        rightScope: right,
+      };
+    });
+    state.clientSupplied = Array.isArray(data.clientSupplied) ? [...data.clientSupplied] : [];
+
+    const indicator = el('editingIndicator');
+    indicator.classList.add('is-hidden');
+    el('generateBtn').textContent = 'Generate Word + PDF';
+    downloadLinks.innerHTML = '';
+    el('clientMatchPanel').classList.add('is-hidden');
+
+    renderRooms();
+    renderClientSupplied();
+    renderPaymentTermLines();
+    recalcTotals();
+    previewProposal();
+  }
+
+  el('importQuickbooksBtn').addEventListener('click', async () => {
+    const fileInput = el('quickbooksPdfInput');
+    const statusEl = el('quickbooksImportStatus');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+      statusEl.textContent = 'Choose a PDF first.';
+      statusEl.className = 'generate-status error';
+      return;
+    }
+
+    statusEl.textContent = 'Reading PDF…';
+    statusEl.className = 'generate-status';
+
+    try {
+      const pdfBase64 = await readFileAsBase64(file);
+      statusEl.textContent = 'Importing and rewriting scope — this can take a minute…';
+      const res = await fetch('/api/import-quickbooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64 }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        statusEl.textContent = body.error || 'Import failed.';
+        statusEl.className = 'generate-status error';
+        return;
+      }
+
+      loadImportedProposal(body);
+      fileInput.value = '';
+      statusEl.textContent = 'Imported — review pricing and scope before generating.';
+      statusEl.className = 'generate-status';
+    } catch (err) {
+      statusEl.textContent = `Import failed: ${err.message}`;
+      statusEl.className = 'generate-status error';
+    }
+  });
+
   // ---- Snippet library (window.SNIPPET_LIBRARY, from snippets.js) -----------
 
   const SNIPPETS = window.SNIPPET_LIBRARY || { categories: [], notes: [], clientSuppliedCommon: [], termsAndConditions: [] };
