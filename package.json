@@ -11,7 +11,8 @@
     "setup-blueprints-bucket": "node scripts/setup-blueprints-bucket.js",
     "smoke-test-supabase": "node scripts/smoke-test-supabase.js",
     "smoke-test-public-config": "node scripts/smoke-test-public-config.js",
-    "smoke-test-draft-tool-schema": "node scripts/smoke-test-draft-tool-schema.js"
+    "smoke-test-draft-tool-schema": "node scripts/smoke-test-draft-tool-schema.js",
+    "smoke-test-blueprint-upload-url": "node scripts/smoke-test-blueprint-upload-url.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

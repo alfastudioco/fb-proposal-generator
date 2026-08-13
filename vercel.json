@@ -15,6 +15,9 @@
     },
     "api/generate-full-proposal.js": {
       "maxDuration": 60
+    },
+    "api/blueprint-upload-url.js": {
+      "maxDuration": 30
     }
   }
 }
