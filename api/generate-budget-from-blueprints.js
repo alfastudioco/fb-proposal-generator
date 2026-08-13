@@ -176,11 +176,18 @@ the rationale that these prices are starting estimates the contractor must verif
     console.error('Blueprint budget drafting failed:', err);
     return res.status(502).json({ error: 'Could not draft a budget from the uploaded blueprints', details: err.message });
   } finally {
-    try {
-      const { error: removeError } = await supabase.storage.from('blueprints').remove(paths);
-      if (removeError) console.error('Could not clean up blueprint Storage files (non-fatal):', removeError);
-    } catch (err) {
-      console.error('Could not clean up blueprint Storage files (non-fatal):', err.message);
+    // Re-validate against BLUEPRINT_PATH_RE here too: this finally block runs even when
+    // the request was rejected for having a malformed/traversal `paths` entry (see the
+    // check above), so we must never hand the raw, unvalidated `paths` array to
+    // Storage's .remove() -- it resolves paths the same unsanitized way download() does.
+    const validPaths = paths.filter((p) => typeof p === 'string' && BLUEPRINT_PATH_RE.test(p));
+    if (validPaths.length) {
+      try {
+        const { error: removeError } = await supabase.storage.from('blueprints').remove(validPaths);
+        if (removeError) console.error('Could not clean up blueprint Storage files (non-fatal):', removeError);
+      } catch (err) {
+        console.error('Could not clean up blueprint Storage files (non-fatal):', err.message);
+      }
     }
 
     for (const fileId of uploadedAnthropicFileIds) {
