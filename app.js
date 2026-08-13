@@ -551,10 +551,15 @@
   let publicConfigPromise = null;
   function getPublicConfig() {
     if (!publicConfigPromise) {
-      publicConfigPromise = fetch('/api/public-config').then((res) => {
-        if (!res.ok) throw new Error('Could not load Supabase config');
-        return res.json();
-      });
+      publicConfigPromise = fetch('/api/public-config')
+        .then((res) => {
+          if (!res.ok) throw new Error('Could not load Supabase config');
+          return res.json();
+        })
+        .catch((err) => {
+          publicConfigPromise = null;
+          throw err;
+        });
     }
     return publicConfigPromise;
   }
@@ -607,6 +612,11 @@
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     if (totalSize > BLUEPRINT_TOTAL_SIZE_CAP_BYTES) {
       statusEl.textContent = 'These files are too large combined. Upload just the relevant sheets (typically floor plans) or split into two passes.';
+      statusEl.className = 'generate-status error';
+      return;
+    }
+    if (notesEl.value.trim().length > 2000) {
+      statusEl.textContent = 'Notes must be 2000 characters or fewer.';
       statusEl.className = 'generate-status error';
       return;
     }
