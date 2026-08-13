@@ -31,6 +31,7 @@ const IMPORT_TOOL = {
           'The section\'s scope rewritten as concrete scope-of-work bullets in FB Construction\'s voice (see example library) -- ' +
           'not vague marketing language, and not inventing scope beyond what the original line items describe. Group related ' +
           'bullets under a tradeLabel header where useful.',
+        titleDescription: 'Room or section name, e.g. "Kitchen" or "Electrical".',
       }),
       notes: { type: 'string', description: 'Exclusions, allowances, or general notes found in the document. Empty string if none.' },
       clientSupplied: {

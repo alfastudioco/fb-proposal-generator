@@ -17,6 +17,7 @@ const DRAFT_TOOL = {
         priceDescription: 'A rough total dollar price for this section, as a plain number (no currency symbol).',
         itemsDescription:
           'Scope items in reading order. Group related bullets under a tradeLabel, alternating trade groups the way real proposals do.',
+        titleDescription: 'Room or area name, e.g. "Kitchen" or "Hall Bathroom".',
       }),
       priceRationale: {
         type: 'string',

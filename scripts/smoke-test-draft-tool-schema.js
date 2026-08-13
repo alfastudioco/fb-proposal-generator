@@ -7,11 +7,15 @@ function main() {
     sectionsDescription: 'desc',
     priceDescription: 'price desc',
     itemsDescription: 'items desc',
+    titleDescription: 'title desc',
   });
   if (schema.type !== 'array') throw new Error('Expected sections schema type "array"');
   const itemProps = schema.items.properties;
   if (!itemProps.title || !itemProps.price || !itemProps.items) {
     throw new Error('Missing expected section properties (title/price/items)');
+  }
+  if (itemProps.title.description !== 'title desc') {
+    throw new Error(`Expected titleDescription to flow through to title.description, got: ${itemProps.title.description}`);
   }
   const scopeItemEnum = itemProps.items.items.properties.type.enum;
   if (scopeItemEnum.join(',') !== 'tradeLabel,bullet') {
