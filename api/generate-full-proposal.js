@@ -1,5 +1,6 @@
 const { getAnthropicClient } = require('../lib/anthropic');
 const { buildSnippetContext, getComparablePricing } = require('../lib/proposalContext');
+const { buildSectionsProperty } = require('../lib/proposalDraftTool');
 
 const MODEL = 'claude-sonnet-5';
 
@@ -11,30 +12,12 @@ const DRAFT_TOOL = {
   input_schema: {
     type: 'object',
     properties: {
-      sections: {
-        type: 'array',
-        description: 'The project split into logical rooms/areas, in a sensible working order.',
-        items: {
-          type: 'object',
-          properties: {
-            title: { type: 'string', description: 'Room or area name, e.g. "Kitchen" or "Hall Bathroom".' },
-            price: { type: 'number', description: 'A rough total dollar price for this section, as a plain number (no currency symbol).' },
-            items: {
-              type: 'array',
-              description: 'Scope items in reading order. Group related bullets under a tradeLabel, alternating trade groups the way real proposals do.',
-              items: {
-                type: 'object',
-                properties: {
-                  type: { type: 'string', enum: ['tradeLabel', 'bullet'] },
-                  text: { type: 'string' },
-                },
-                required: ['type', 'text'],
-              },
-            },
-          },
-          required: ['title', 'price', 'items'],
-        },
-      },
+      sections: buildSectionsProperty({
+        sectionsDescription: 'The project split into logical rooms/areas, in a sensible working order.',
+        priceDescription: 'A rough total dollar price for this section, as a plain number (no currency symbol).',
+        itemsDescription:
+          'Scope items in reading order. Group related bullets under a tradeLabel, alternating trade groups the way real proposals do.',
+      }),
       priceRationale: {
         type: 'string',
         description: 'One or two sentences explaining the overall estimate and flagging it as a starting point that must be verified before sending.',

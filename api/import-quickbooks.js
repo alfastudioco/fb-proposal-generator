@@ -1,5 +1,6 @@
 const { getAnthropicClient } = require('../lib/anthropic');
 const { buildSnippetContext } = require('../lib/proposalContext');
+const { buildSectionsProperty } = require('../lib/proposalDraftTool');
 
 const MODEL = 'claude-sonnet-5';
 
@@ -22,34 +23,15 @@ const IMPORT_TOOL = {
         required: ['name', 'address', 'phone', 'email'],
       },
       proposalNum: { type: 'string', description: 'Estimate or invoice number from the document, or empty string if not present.' },
-      sections: {
-        type: 'array',
-        description:
+      sections: buildSectionsProperty({
+        sectionsDescription:
           'The document\'s flat line items grouped into logical rooms/sections (by room, area, or trade), in reading order.',
-        items: {
-          type: 'object',
-          properties: {
-            title: { type: 'string', description: 'Room or section name, e.g. "Kitchen" or "Electrical".' },
-            price: { type: 'number', description: 'Total dollar price for this section, summed from the matching original line items.' },
-            items: {
-              type: 'array',
-              description:
-                'The section\'s scope rewritten as concrete scope-of-work bullets in FB Construction\'s voice (see example library) -- ' +
-                'not vague marketing language, and not inventing scope beyond what the original line items describe. Group related ' +
-                'bullets under a tradeLabel header where useful.',
-              items: {
-                type: 'object',
-                properties: {
-                  type: { type: 'string', enum: ['tradeLabel', 'bullet'] },
-                  text: { type: 'string' },
-                },
-                required: ['type', 'text'],
-              },
-            },
-          },
-          required: ['title', 'price', 'items'],
-        },
-      },
+        priceDescription: 'Total dollar price for this section, summed from the matching original line items.',
+        itemsDescription:
+          'The section\'s scope rewritten as concrete scope-of-work bullets in FB Construction\'s voice (see example library) -- ' +
+          'not vague marketing language, and not inventing scope beyond what the original line items describe. Group related ' +
+          'bullets under a tradeLabel header where useful.',
+      }),
       notes: { type: 'string', description: 'Exclusions, allowances, or general notes found in the document. Empty string if none.' },
       clientSupplied: {
         type: 'array',
