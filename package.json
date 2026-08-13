@@ -12,7 +12,8 @@
     "smoke-test-supabase": "node scripts/smoke-test-supabase.js",
     "smoke-test-public-config": "node scripts/smoke-test-public-config.js",
     "smoke-test-draft-tool-schema": "node scripts/smoke-test-draft-tool-schema.js",
-    "smoke-test-blueprint-upload-url": "node scripts/smoke-test-blueprint-upload-url.js"
+    "smoke-test-blueprint-upload-url": "node scripts/smoke-test-blueprint-upload-url.js",
+    "smoke-test-generate-budget-from-blueprints": "node scripts/smoke-test-generate-budget-from-blueprints.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

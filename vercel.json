@@ -18,6 +18,7 @@
     },
     "api/blueprint-upload-url.js": {
       "maxDuration": 30
-    }
+    },
+    "api/generate-budget-from-blueprints.js": { "maxDuration": 60 }
   }
 }
