@@ -24,6 +24,7 @@ Create `.env.local` (gitignored) with:
 ```
 SUPABASE_URL=https://dasufgubibuutrpwounv.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<from Supabase dashboard → Settings → API — NOT the anon key>
+SUPABASE_ANON_KEY=<from Supabase dashboard → Settings → API — the anon/public key, safe to expose to the browser; used only by the blueprint-upload flow's direct-to-Storage PUT (see api/public-config.js)>
 LOCAL_CHROMIUM=true         # forces the local full-puppeteer fallback instead of @sparticuz/chromium
 ANTHROPIC_API_KEY=<from console.anthropic.com — powers image-based client-info extraction and AI scope generation>
 ```
@@ -34,11 +35,12 @@ supabase/schema.sql
 ```
 This creates `fbpg_clients` and `fbpg_proposals` — **not** `clients`/`proposals`. This Supabase project is shared with other apps in this workspace (cabinetprice/alfa-studio-tracker) that already own unprefixed `clients`/`proposals` tables with a different, unrelated schema. Do not rename these back — see `supabase/schema.sql`'s header comment.
 
-Then create the **private** Storage bucket via:
+Then create the **private** Storage buckets via:
 ```
 npm run setup-bucket        # scripts/setup-storage-bucket.js — creates a private "proposals" bucket
+npm run setup-blueprints-bucket   # scripts/setup-blueprints-bucket.js -- creates a private "blueprints" bucket for the blueprint-upload flow
 ```
-(Storage buckets are a separate namespace from Postgres tables, so `proposals` here doesn't collide with anything — only the table names needed the `fbpg_` prefix.)
+(Storage buckets are a separate namespace from Postgres tables, so `proposals` and `blueprints` here don't collide with anything — only the table names needed the `fbpg_` prefix.)
 
 Local dev:
 ```
@@ -59,8 +61,15 @@ On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_K
 
 `POST /api/generate-scope` — body `{ description, roomTitle? }`. Returns `{ items, suggestedPrice, priceRationale }`, grounded in `snippets.js`'s real scope-of-work library and past proposal pricing.
 
+`GET /api/public-config` — returns `{ supabaseUrl, supabaseAnonKey }` so the browser can upload blueprint files directly to Storage (bypassing Vercel's request body limit). Both values are safe to expose; see `api/public-config.js`.
+
+`POST /api/blueprint-upload-url` — body `{ fileName, mimeType }` (`mimeType` one of `application/pdf`, `image/jpeg`, `image/png`, `image/webp`). Returns `{ path, signedUrl, token }` for a direct-to-Storage upload.
+
+`POST /api/generate-budget-from-blueprints` — body `{ paths: string[], notes? }` (`paths` from the endpoint above, up to 15 files, ~18MB combined). Returns `{ sections, priceRationale, notes, clientSupplied }` — the same shape `/api/generate-full-proposal` returns — drafted by reading the uploaded blueprint/plan files with Claude's vision.
+
 ## Known limitations
 
+- **Blueprint uploads are capped at 15 files / ~18MB combined**, to keep the AI read comfortably inside Vercel Hobby's 60s function limit. Large plan sets need trimming to the relevant sheets (typically floor plans) or splitting into two uploads. CAD files (DWG/DXF) aren't supported -- export/plot to PDF first. Uploaded blueprint files are deleted immediately after each request and are never retained. If the browser's upload step fails partway through a multi-file batch, already-uploaded files for that batch are not automatically cleaned up (no bucket lifecycle rule is configured yet) -- low-stakes for this single-tenant internal tool, but worth knowing.
 - **Two independently-maintained visual code paths**: the `.docx` (via the `docx` library) and the `.pdf` (via headless Chromium rendering `generator/renderHtml.js`) are not derived from one another. Any layout change to one needs a manual pass over the other. Shared constants live in `generator/styles.js`.
 - **Local Chromium ≠ production Chromium**: local dev falls back to full `puppeteer` (`LOCAL_CHROMIUM=true`), not the exact `@sparticuz/chromium` binary used in production. Validate PDF-fidelity changes against a real Vercel Preview Deployment.
 - **Signed URLs expire after 7 days.** Revisiting an old proposal after that needs a fresh signed URL (not built yet).
