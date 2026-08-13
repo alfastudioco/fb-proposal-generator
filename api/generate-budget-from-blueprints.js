@@ -79,17 +79,28 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { paths, notes } = req.body || {};
-  if (!Array.isArray(paths) || paths.length === 0 || paths.length > MAX_FILES) {
+  // Only the "is paths even an array" check can safely stay outside the try/finally:
+  // if paths isn't a real array, there's nothing meaningful to pass to Storage's
+  // .remove() below. Once we know paths is a genuine array, the browser has already
+  // uploaded those files to Storage in an earlier step (Task 4) -- so every check from
+  // here on (length bounds, notes shape) must happen inside the try block, so the
+  // finally block's cleanup always gets a chance to run before we respond, even for a
+  // request that fails validation.
+  if (!Array.isArray(paths)) {
     return res.status(400).json({ error: `paths must be an array of 1 to ${MAX_FILES} blueprint file paths` });
-  }
-  if (notes !== undefined && (typeof notes !== 'string' || notes.length > 2000)) {
-    return res.status(400).json({ error: 'notes must be a string under 2000 characters' });
   }
 
   const supabase = getSupabaseClient();
   const uploadedAnthropicFileIds = [];
 
   try {
+    if (paths.length === 0 || paths.length > MAX_FILES) {
+      return res.status(400).json({ error: `paths must be an array of 1 to ${MAX_FILES} blueprint file paths` });
+    }
+    if (notes !== undefined && (typeof notes !== 'string' || notes.length > 2000)) {
+      return res.status(400).json({ error: 'notes must be a string under 2000 characters' });
+    }
+
     let blueprintFiles;
     try {
       blueprintFiles = await fetchBlueprintFiles(supabase, paths);
