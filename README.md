@@ -47,7 +47,7 @@ Local dev:
 npm run dev        # runs `vercel dev`
 ```
 
-On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_KEY` to the Vercel project's Environment Variables (dashboard) — `.env.local` is not read in production.
+On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`, and `ANTHROPIC_API_KEY` to the Vercel project's Environment Variables (dashboard) — `.env.local` is not read in production.
 
 ## API
 
