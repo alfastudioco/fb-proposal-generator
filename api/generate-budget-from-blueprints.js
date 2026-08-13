@@ -10,6 +10,12 @@ const MAX_FILES = 15;
 const TOTAL_SIZE_CAP_BYTES = 18 * 1024 * 1024;
 const DOCUMENT_MIME_TYPES = new Set(['application/pdf']);
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+// Must match the exact path format minted by api/blueprint-upload-url.js:
+// `${crypto.randomUUID()}-${sanitizeFileName(fileName)}`. Rejecting anything else
+// prevents a caller from passing a path-traversal string (e.g. "../proposals/x.pdf")
+// that would make the service-role-keyed download() below reach outside the
+// "blueprints" bucket.
+const BLUEPRINT_PATH_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[A-Za-z0-9._-]+$/;
 
 const DRAFT_FROM_BLUEPRINTS_TOOL = {
   name: 'draft_proposal_from_blueprints',
@@ -100,6 +106,9 @@ module.exports = async function handler(req, res) {
     if (notes !== undefined && (typeof notes !== 'string' || notes.length > 2000)) {
       return res.status(400).json({ error: 'notes must be a string under 2000 characters' });
     }
+    if (!paths.every((p) => typeof p === 'string' && BLUEPRINT_PATH_RE.test(p))) {
+      return res.status(400).json({ error: 'paths must be blueprint upload paths minted by this app' });
+    }
 
     let blueprintFiles;
     try {
@@ -155,6 +164,10 @@ the rationale that these prices are starting estimates the contractor must verif
       messages: [{ role: 'user', content: [...fileBlocks, { type: 'text', text: prompt }] }],
     });
 
+    if (response.stop_reason === 'max_tokens') {
+      throw new Error('Model response was truncated (max_tokens reached) — try uploading fewer files or splitting into two passes');
+    }
+
     const toolUse = response.content.find((block) => block.type === 'tool_use');
     if (!toolUse) throw new Error('Model did not return a structured proposal');
 
@@ -163,8 +176,12 @@ the rationale that these prices are starting estimates the contractor must verif
     console.error('Blueprint budget drafting failed:', err);
     return res.status(502).json({ error: 'Could not draft a budget from the uploaded blueprints', details: err.message });
   } finally {
-    const { error: removeError } = await supabase.storage.from('blueprints').remove(paths);
-    if (removeError) console.error('Could not clean up blueprint Storage files (non-fatal):', removeError);
+    try {
+      const { error: removeError } = await supabase.storage.from('blueprints').remove(paths);
+      if (removeError) console.error('Could not clean up blueprint Storage files (non-fatal):', removeError);
+    } catch (err) {
+      console.error('Could not clean up blueprint Storage files (non-fatal):', err.message);
+    }
 
     for (const fileId of uploadedAnthropicFileIds) {
       try {
