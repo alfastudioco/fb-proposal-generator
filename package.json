@@ -8,6 +8,7 @@
     "dev": "vercel dev",
     "extract-logo": "node scripts/extract-logo.js",
     "setup-bucket": "node scripts/setup-storage-bucket.js",
+    "setup-blueprints-bucket": "node scripts/setup-blueprints-bucket.js",
     "smoke-test-supabase": "node scripts/smoke-test-supabase.js",
     "smoke-test-public-config": "node scripts/smoke-test-public-config.js"
   },
