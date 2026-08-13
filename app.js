@@ -537,6 +537,141 @@
     }
   });
 
+  // ---- Draft a full proposal from uploaded blueprint/plan files -------------
+  //
+  // Same append-to-current-state behavior as "Draft Full Proposal from
+  // Description" above (not a reset like the QuickBooks import) -- plans
+  // don't carry client contact info the way a QuickBooks estimate does, so
+  // there's no client-info payload to wholesale-replace the form with.
+
+  const BLUEPRINT_MAX_FILES = 15;
+  const BLUEPRINT_TOTAL_SIZE_CAP_BYTES = 18 * 1024 * 1024;
+  const BLUEPRINT_ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
+  let publicConfigPromise = null;
+  function getPublicConfig() {
+    if (!publicConfigPromise) {
+      publicConfigPromise = fetch('/api/public-config').then((res) => {
+        if (!res.ok) throw new Error('Could not load Supabase config');
+        return res.json();
+      });
+    }
+    return publicConfigPromise;
+  }
+
+  async function uploadBlueprintFile(file, config) {
+    const urlRes = await fetch('/api/blueprint-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: file.name, mimeType: file.type }),
+    });
+    const urlBody = await urlRes.json();
+    if (!urlRes.ok) throw new Error(urlBody.error || `Could not get an upload URL for ${file.name}`);
+
+    const putRes = await fetch(urlBody.signedUrl, {
+      method: 'PUT',
+      headers: {
+        apikey: config.supabaseAnonKey,
+        Authorization: `Bearer ${config.supabaseAnonKey}`,
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+    if (!putRes.ok) throw new Error(`Could not upload ${file.name}`);
+
+    return urlBody.path;
+  }
+
+  el('draftFromBlueprintsBtn').addEventListener('click', async () => {
+    const fileInput = el('blueprintFilesInput');
+    const notesEl = el('blueprintNotes');
+    const statusEl = el('blueprintDraftStatus');
+    const files = Array.from(fileInput.files || []);
+
+    if (!files.length) {
+      statusEl.textContent = 'Choose at least one blueprint file first.';
+      statusEl.className = 'generate-status error';
+      return;
+    }
+    if (files.length > BLUEPRINT_MAX_FILES) {
+      statusEl.textContent = `Choose ${BLUEPRINT_MAX_FILES} files or fewer.`;
+      statusEl.className = 'generate-status error';
+      return;
+    }
+    const badType = files.find((f) => !BLUEPRINT_ALLOWED_MIME_TYPES.includes(f.type));
+    if (badType) {
+      statusEl.textContent = `${badType.name} isn't a supported file type (PDF, JPEG, PNG, or WEBP).`;
+      statusEl.className = 'generate-status error';
+      return;
+    }
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > BLUEPRINT_TOTAL_SIZE_CAP_BYTES) {
+      statusEl.textContent = 'These files are too large combined. Upload just the relevant sheets (typically floor plans) or split into two passes.';
+      statusEl.className = 'generate-status error';
+      return;
+    }
+
+    try {
+      statusEl.textContent = 'Uploading blueprints…';
+      statusEl.className = 'generate-status';
+      const config = await getPublicConfig();
+
+      const paths = [];
+      for (let i = 0; i < files.length; i += 1) {
+        statusEl.textContent = `Uploading ${i + 1} of ${files.length}…`;
+        paths.push(await uploadBlueprintFile(files[i], config));
+      }
+
+      statusEl.textContent = 'Reading blueprints and drafting scope — this can take a minute…';
+      const res = await fetch('/api/generate-budget-from-blueprints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths, notes: notesEl.value.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        statusEl.textContent = body.error || 'Drafting failed.';
+        statusEl.className = 'generate-status error';
+        return;
+      }
+
+      for (const s of body.sections || []) {
+        const { left, right } = splitSnippetItems(s.items || []);
+        state.sections.push({
+          id: nextSectionId(),
+          title: s.title || '',
+          subtitle: '',
+          price: Number(s.price) || 0,
+          priceLabel: '',
+          description: '',
+          scopeStatus: null,
+          leftScope: left,
+          rightScope: right,
+        });
+      }
+      if (body.notes) {
+        const notesTextarea = el('notes');
+        notesTextarea.value = notesTextarea.value.trim() ? `${notesTextarea.value.trim()}\n${body.notes}` : body.notes;
+      }
+      if (Array.isArray(body.clientSupplied)) {
+        state.clientSupplied.push(...body.clientSupplied);
+      }
+
+      fileInput.value = '';
+      notesEl.value = '';
+      statusEl.textContent = body.priceRationale || 'Done — review pricing and scope before generating.';
+      statusEl.className = 'generate-status';
+
+      renderRooms();
+      renderClientSupplied();
+      recalcTotals();
+      previewProposal();
+    } catch (err) {
+      statusEl.textContent = `Drafting failed: ${err.message}`;
+      statusEl.className = 'generate-status error';
+    }
+  });
+
   // ---- Client-supplied items -----------------------------------------------
 
   function addClientSuppliedItem() {

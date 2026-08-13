@@ -27,6 +27,14 @@
     </section>
 
     <section class="panel">
+      <h2>Draft from Blueprints</h2>
+      <label>Upload blueprints/plans (PDF or photos, up to 15 files)<input type="file" id="blueprintFilesInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple></label>
+      <textarea id="blueprintNotes" rows="2" placeholder="Finish level, exclusions, anything the plans don't show (optional)"></textarea>
+      <button type="button" class="btn-add" id="draftFromBlueprintsBtn">Draft from Blueprints</button>
+      <div id="blueprintDraftStatus" class="generate-status"></div>
+    </section>
+
+    <section class="panel">
       <h2>Client Information</h2>
       <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
       <label>Proposal Number<input type="text" id="proposalNum" placeholder="1901"></label>
