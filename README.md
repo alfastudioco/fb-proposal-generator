@@ -67,7 +67,7 @@ On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`,
 
 `POST /api/generate-budget-from-blueprints` — body `{ paths: string[], notes? }` (`paths` from the endpoint above, up to 15 files, ~18MB combined). Returns `{ sections, priceRationale, notes, clientSupplied }` — the same shape `/api/generate-full-proposal` returns — drafted by reading the uploaded blueprint/plan files with Claude's vision.
 
-`GET /api/note-snippets` — lists the user-managed library of reusable "Additional Notes" snippets (`fbpg_note_snippets`), returned as `{ noteSnippets: [{id, label, text}] }`. These supplement (don't replace) the hardcoded notes in `snippets.js`, and are managed from the "Manage custom notes" panel under Additional Notes & Exclusions in the UI — no code change needed to add one. `POST /api/note-snippets` creates (`{label, text}`) or updates (`{id, label, text}`) one; `DELETE /api/note-snippets?id=` removes one.
+`GET /api/clients?resource=note-snippets` — lists the user-managed library of reusable "Additional Notes" snippets (`fbpg_note_snippets`), returned as `{ noteSnippets: [{id, label, text}] }`. These supplement (don't replace) the hardcoded notes in `snippets.js`, and are managed from the "Manage custom notes" panel under Additional Notes & Exclusions in the UI — no code change needed to add one. `POST /api/clients?resource=note-snippets` creates (`{label, text}`) or updates (`{id, label, text}`) one; `DELETE /api/clients?resource=note-snippets&id=` removes one. (Merged into `api/clients.js` rather than its own endpoint file to stay under Vercel Hobby's 12-serverless-function-per-deployment cap — `api/clients.js` was picked because it had no frontend caller yet, see below.)
 
 ## Known limitations
 

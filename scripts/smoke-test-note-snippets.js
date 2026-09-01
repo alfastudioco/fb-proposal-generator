@@ -1,9 +1,11 @@
-// Exercises api/note-snippets.js end to end against the real Supabase
-// project: create, list, update, delete a note snippet, confirming the
-// `fbpg_note_snippets` table exists and is reachable (supabase/schema.sql
-// must have been run first).
+// Exercises api/clients.js's ?resource=note-snippets branch end to end
+// against the real Supabase project: create, list, update, delete a note
+// snippet, confirming the `fbpg_note_snippets` table exists and is
+// reachable (supabase/schema.sql must have been run first). Note snippets
+// are merged into api/clients.js rather than their own file to stay under
+// Vercel Hobby's 12-serverless-function-per-deployment cap.
 require('./load-env-local');
-const handler = require('../api/note-snippets');
+const handler = require('../api/clients');
 
 function mockRes() {
   const res = { statusCode: 200, body: null };
@@ -16,7 +18,7 @@ function mockRes() {
 
 async function call(req) {
   const res = mockRes();
-  await handler(req, res);
+  await handler({ ...req, query: { ...req.query, resource: 'note-snippets' } }, res);
   return res;
 }
 

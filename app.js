@@ -365,7 +365,7 @@
 
   async function loadCustomNotes() {
     try {
-      const res = await fetch('/api/note-snippets');
+      const res = await fetch('/api/clients?resource=note-snippets');
       if (!res.ok) throw new Error('Could not load custom notes');
       const body = await res.json();
       customNotes = body.noteSnippets || [];
@@ -382,7 +382,7 @@
       return;
     }
     try {
-      const res = await fetch('/api/note-snippets', {
+      const res = await fetch('/api/clients?resource=note-snippets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, label: label.trim(), text: text.trim() }),
@@ -398,7 +398,7 @@
 
   async function deleteCustomNote(id) {
     try {
-      const res = await fetch(`/api/note-snippets?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/clients?resource=note-snippets&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Delete failed');
       setCustomNoteStatus('Note deleted.');
