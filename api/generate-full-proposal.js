@@ -55,12 +55,14 @@ const EDIT_TOOL = {
   description: 'Records the full proposal again with only the requested change applied; everything else unchanged.',
   input_schema: {
     type: 'object',
+    additionalProperties: false,
     properties: {
       sections: {
         type: 'array',
         description: 'Every room/section, in order, after the edit. Include ALL sections, not just changed ones.',
         items: {
           type: 'object',
+          additionalProperties: false,
           properties: {
             title: { type: 'string' },
             subtitle: { type: 'string' },

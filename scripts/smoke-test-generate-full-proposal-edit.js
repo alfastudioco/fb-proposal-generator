@@ -59,10 +59,13 @@ async function main() {
     instruction: 'Add a note that our vendor network gives 25-40% discounts at Studio41 for plumbing fixtures.',
   });
   if (res1.statusCode !== 200) throw new Error(`Note edit failed: ${res1.statusCode} ${JSON.stringify(res1.body)}`);
+  if (res1.body.client !== undefined) throw new Error('Response included client field (should be excluded)');
+  if (res1.body.proposalNum !== undefined) throw new Error('Response included proposalNum field (should be excluded)');
+  if (res1.body.date !== undefined) throw new Error('Response included date field (should be excluded)');
   if (!deepEqual(res1.body.sections, BASE_PROPOSAL.sections)) throw new Error('Sections changed on a notes-only instruction');
   if (res1.body.notes === BASE_PROPOSAL.notes) throw new Error('Notes did not change');
   if (!/studio41|discount/i.test(res1.body.notes)) throw new Error(`New notes text doesn't look right: ${res1.body.notes}`);
-  console.log('Case 1 passed: note added, sections untouched.');
+  console.log('Case 1 passed: note added, sections untouched, client/proposalNum/date excluded.');
   console.log('  New notes:', res1.body.notes);
 
   const res2 = await callEdit({
@@ -70,6 +73,9 @@ async function main() {
     instruction: 'Change the Kitchen price to 45000.',
   });
   if (res2.statusCode !== 200) throw new Error(`Price edit failed: ${res2.statusCode} ${JSON.stringify(res2.body)}`);
+  if (res2.body.client !== undefined) throw new Error('Response included client field (should be excluded)');
+  if (res2.body.proposalNum !== undefined) throw new Error('Response included proposalNum field (should be excluded)');
+  if (res2.body.date !== undefined) throw new Error('Response included date field (should be excluded)');
   if (res2.body.notes !== BASE_PROPOSAL.notes) throw new Error('Notes changed on a price-only instruction');
   const kitchen = res2.body.sections.find((s) => s.title === 'Kitchen');
   if (!kitchen) throw new Error('Kitchen section missing from response');
@@ -77,7 +83,7 @@ async function main() {
   if (!deepEqual(kitchen.leftScope, BASE_PROPOSAL.sections[0].leftScope) || !deepEqual(kitchen.rightScope, BASE_PROPOSAL.sections[0].rightScope)) {
     throw new Error('Scope bullets changed on a price-only instruction');
   }
-  console.log('Case 2 passed: Kitchen price updated to 45000, scope/notes untouched.');
+  console.log('Case 2 passed: Kitchen price updated to 45000, scope/notes untouched, client/proposalNum/date excluded.');
 
   console.log('\ngenerate-full-proposal-edit smoke test passed.');
 }
