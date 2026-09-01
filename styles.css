@@ -80,6 +80,44 @@ body {
 }
 .panel-header h2 { margin: 0; }
 
+.accordion-group {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.accordion-group summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--navy);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--notes-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.accordion-group summary::-webkit-details-marker { display: none; }
+.accordion-group summary::after {
+  content: '\203A';
+  color: var(--lgray);
+  font-size: 16px;
+  transform: rotate(90deg);
+  transition: transform 0.15s;
+}
+.accordion-group:not([open]) summary::after { transform: rotate(0deg); }
+.accordion-body {
+  padding: 16px 14px 4px;
+}
+.accordion-body .panel:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .snippet-select {
   font-size: 10px;
   color: var(--navy);

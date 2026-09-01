@@ -19,110 +19,130 @@
       <div id="editingIndicator" class="editing-indicator is-hidden"></div>
     </div>
 
-    <section class="panel">
-      <h2>Import from QuickBooks</h2>
-      <label>Upload QuickBooks Proposal (PDF) — starts a brand-new proposal<input type="file" id="quickbooksPdfInput" accept="application/pdf,.pdf"></label>
-      <button type="button" class="btn-add" id="importQuickbooksBtn">Import &amp; Make It Fancy</button>
-      <div id="quickbooksImportStatus" class="generate-status"></div>
-    </section>
+    <details class="accordion-group">
+      <summary>Import &amp; Client Info</summary>
+      <div class="accordion-body">
+        <section class="panel">
+          <h2>Import from QuickBooks</h2>
+          <label>Upload QuickBooks Proposal (PDF) — starts a brand-new proposal<input type="file" id="quickbooksPdfInput" accept="application/pdf,.pdf"></label>
+          <button type="button" class="btn-add" id="importQuickbooksBtn">Import &amp; Make It Fancy</button>
+          <div id="quickbooksImportStatus" class="generate-status"></div>
+        </section>
 
-    <section class="panel">
-      <h2>Draft from Blueprints</h2>
-      <label>Upload blueprints/plans (PDF or photos, up to 15 files)<input type="file" id="blueprintFilesInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple></label>
-      <label>Notes (optional)<textarea id="blueprintNotes" rows="2" maxlength="2000" placeholder="Finish level, exclusions, anything the plans don't show (optional)"></textarea></label>
-      <button type="button" class="btn-add" id="draftFromBlueprintsBtn">Draft from Blueprints</button>
-      <div id="blueprintDraftStatus" class="generate-status"></div>
-    </section>
+        <section class="panel">
+          <h2>Draft from Blueprints</h2>
+          <label>Upload blueprints/plans (PDF or photos, up to 15 files)<input type="file" id="blueprintFilesInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple></label>
+          <label>Notes (optional)<textarea id="blueprintNotes" rows="2" maxlength="2000" placeholder="Finish level, exclusions, anything the plans don't show (optional)"></textarea></label>
+          <button type="button" class="btn-add" id="draftFromBlueprintsBtn">Draft from Blueprints</button>
+          <div id="blueprintDraftStatus" class="generate-status"></div>
+        </section>
 
-    <section class="panel">
-      <h2>Client Information</h2>
-      <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
-      <label>Proposal Number<input type="text" id="proposalNum" placeholder="1901"></label>
-      <label>Property Address<input type="text" id="propertyAddress" placeholder="123 Main St, City, IL"></label>
-      <div class="row">
-        <label>Phone<input type="text" id="clientPhone" placeholder="847-555-0100"></label>
-        <label>Email<input type="text" id="clientEmail" placeholder="client@example.com"></label>
+        <section class="panel">
+          <h2>Client Information</h2>
+          <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
+          <label>Proposal Number<input type="text" id="proposalNum" placeholder="1901"></label>
+          <label>Property Address<input type="text" id="propertyAddress" placeholder="123 Main St, City, IL"></label>
+          <div class="row">
+            <label>Phone<input type="text" id="clientPhone" placeholder="847-555-0100"></label>
+            <label>Email<input type="text" id="clientEmail" placeholder="client@example.com"></label>
+          </div>
+          <label>Date<input type="text" id="proposalDate"></label>
+          <label>Timeline<input type="text" id="timeline" placeholder="6–8 Weeks"></label>
+
+          <label>Upload Client Info (screenshot, business card, note)<input type="file" id="clientImageInput" accept="image/*"></label>
+          <button type="button" class="btn-add" id="extractClientBtn">Extract from Image</button>
+          <div id="clientExtractStatus" class="generate-status"></div>
+          <div id="clientMatchPanel" class="client-match-panel is-hidden"></div>
+        </section>
       </div>
-      <label>Date<input type="text" id="proposalDate"></label>
-      <label>Timeline<input type="text" id="timeline" placeholder="6–8 Weeks"></label>
+    </details>
 
-      <label>Upload Client Info (screenshot, business card, note)<input type="file" id="clientImageInput" accept="image/*"></label>
-      <button type="button" class="btn-add" id="extractClientBtn">Extract from Image</button>
-      <div id="clientExtractStatus" class="generate-status"></div>
-      <div id="clientMatchPanel" class="client-match-panel is-hidden"></div>
-    </section>
+    <details class="accordion-group" open>
+      <summary>Rooms &amp; Scope</summary>
+      <div class="accordion-body">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Rooms &amp; Scope</h2>
+            <button type="button" class="btn-add" id="addRoomBtn">+ Add Room</button>
+          </div>
+          <div class="ai-scope-generator">
+            <textarea id="fullProjectDescription" class="room-description" rows="3" placeholder="Describe the entire project in plain language (e.g. &quot;gut kitchen and hall bath remodel, new luxury vinyl plank in both, move island plumbing&quot;) and AI will draft every room at once."></textarea>
+            <button type="button" class="btn-add" id="draftFullProposalBtn">Draft Full Proposal from Description</button>
+            <div id="fullProposalStatus" class="room-scope-status"></div>
+          </div>
+          <div id="roomsList"></div>
+        </section>
 
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Rooms &amp; Scope</h2>
-        <button type="button" class="btn-add" id="addRoomBtn">+ Add Room</button>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Client-Supplied Items</h2>
+            <select class="snippet-select" id="clientSuppliedSnippetSelect">
+              <option value="">+ Common item…</option>
+            </select>
+          </div>
+          <div id="clientSuppliedList"></div>
+          <button type="button" class="btn-add" id="addClientSuppliedBtn">+ Add Item</button>
+        </section>
       </div>
-      <div class="ai-scope-generator">
-        <textarea id="fullProjectDescription" class="room-description" rows="3" placeholder="Describe the entire project in plain language (e.g. &quot;gut kitchen and hall bath remodel, new luxury vinyl plank in both, move island plumbing&quot;) and AI will draft every room at once."></textarea>
-        <button type="button" class="btn-add" id="draftFullProposalBtn">Draft Full Proposal from Description</button>
-        <div id="fullProposalStatus" class="room-scope-status"></div>
+    </details>
+
+    <details class="accordion-group">
+      <summary>Notes &amp; Terms</summary>
+      <div class="accordion-body">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Additional Notes &amp; Exclusions</h2>
+            <select class="snippet-select" id="notesSnippetSelect">
+              <option value="">+ Common note…</option>
+            </select>
+          </div>
+          <textarea id="notes" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
+
+          <details class="notes-library-manager">
+            <summary>Manage custom notes…</summary>
+            <div id="customNotesList"></div>
+            <div class="custom-note-add">
+              <input type="text" id="customNoteLabel" placeholder="Short label (shown in the dropdown)">
+              <textarea id="customNoteText" rows="2" placeholder="Full note text to insert"></textarea>
+              <button type="button" class="btn-add" id="addCustomNoteBtn">+ Add Note</button>
+            </div>
+            <div id="customNoteStatus" class="generate-status"></div>
+          </details>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Terms &amp; Conditions</h2>
+            <select class="snippet-select" id="termsSnippetSelect">
+              <option value="">+ Standard clause…</option>
+            </select>
+          </div>
+          <textarea id="termsAndConditions" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
+        </section>
       </div>
-      <div id="roomsList"></div>
-    </section>
+    </details>
 
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Client-Supplied Items</h2>
-        <select class="snippet-select" id="clientSuppliedSnippetSelect">
-          <option value="">+ Common item…</option>
-        </select>
+    <details class="accordion-group">
+      <summary>Investment Summary</summary>
+      <div class="accordion-body">
+        <section class="panel">
+          <h2>Investment Summary</h2>
+          <label>Total Label (shown under the total)<input type="text" id="totalLabel" placeholder="Kitchen • Bath • Flooring"></label>
+          <label>Investment Note (optional, italic)<input type="text" id="investmentNote" placeholder="Cabinet pricing subject to finalization"></label>
+          <label>Valid Until (optional)<input type="text" id="expirationDate" placeholder="30 days from proposal date"></label>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="paymentTermsToggle">
+            Use payment terms instead of the commitment box
+          </label>
+          <div id="paymentTermsPanel" class="payment-terms-panel is-hidden">
+            <div id="paymentTermsList"></div>
+            <button type="button" class="btn-add" id="addPaymentTermBtn">+ Add Payment Line</button>
+            <label>Note (optional, italic)<input type="text" id="paymentTermsNote" placeholder="Balance due upon substantial completion"></label>
+          </div>
+        </section>
       </div>
-      <div id="clientSuppliedList"></div>
-      <button type="button" class="btn-add" id="addClientSuppliedBtn">+ Add Item</button>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Additional Notes &amp; Exclusions</h2>
-        <select class="snippet-select" id="notesSnippetSelect">
-          <option value="">+ Common note…</option>
-        </select>
-      </div>
-      <textarea id="notes" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
-
-      <details class="notes-library-manager">
-        <summary>Manage custom notes…</summary>
-        <div id="customNotesList"></div>
-        <div class="custom-note-add">
-          <input type="text" id="customNoteLabel" placeholder="Short label (shown in the dropdown)">
-          <textarea id="customNoteText" rows="2" placeholder="Full note text to insert"></textarea>
-          <button type="button" class="btn-add" id="addCustomNoteBtn">+ Add Note</button>
-        </div>
-        <div id="customNoteStatus" class="generate-status"></div>
-      </details>
-    </section>
-
-    <section class="panel">
-      <h2>Investment Summary</h2>
-      <label>Total Label (shown under the total)<input type="text" id="totalLabel" placeholder="Kitchen • Bath • Flooring"></label>
-      <label>Investment Note (optional, italic)<input type="text" id="investmentNote" placeholder="Cabinet pricing subject to finalization"></label>
-      <label>Valid Until (optional)<input type="text" id="expirationDate" placeholder="30 days from proposal date"></label>
-
-      <label class="checkbox-label">
-        <input type="checkbox" id="paymentTermsToggle">
-        Use payment terms instead of the commitment box
-      </label>
-      <div id="paymentTermsPanel" class="payment-terms-panel is-hidden">
-        <div id="paymentTermsList"></div>
-        <button type="button" class="btn-add" id="addPaymentTermBtn">+ Add Payment Line</button>
-        <label>Note (optional, italic)<input type="text" id="paymentTermsNote" placeholder="Balance due upon substantial completion"></label>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Terms &amp; Conditions</h2>
-        <select class="snippet-select" id="termsSnippetSelect">
-          <option value="">+ Standard clause…</option>
-        </select>
-      </div>
-      <textarea id="termsAndConditions" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
-    </section>
+    </details>
 
     <div class="totals-bar">
       <span class="totals-label">Total Project Investment</span>
