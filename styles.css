@@ -579,3 +579,56 @@ button {
 .btn-file:hover { background: var(--navy-lite); }
 .btn-file:disabled { opacity: 0.6; }
 a.btn-file { display: inline-block; text-decoration: none; }
+
+.chat-panel {
+  margin-top: 16px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--notes-bg);
+}
+.chat-panel textarea {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+  margin-bottom: 6px;
+}
+.chat-log {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.chat-entry {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+}
+.chat-entry-instruction {
+  font-weight: bold;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+.chat-entry-note {
+  color: var(--gray);
+}
+.chat-entry-note.error { color: #b3261e; }
+.chat-entry-changes {
+  margin: 4px 0;
+  padding-left: 16px;
+  color: #333;
+}
+.chat-entry-changes:empty { display: none; }
+.chat-entry-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}

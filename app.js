@@ -418,6 +418,203 @@
     }
   });
 
+  // ---- Chat-driven proposal edits (mode=edit) --------------------------------
+
+  const CHAT_SIMPLE_FIELD_LABELS = {
+    notes: 'Notes',
+    termsAndConditions: 'Terms & Conditions',
+    totalLabel: 'Total Label',
+    investmentNote: 'Investment Note',
+    expirationDate: 'Valid Until',
+  };
+
+  function truncateForChat(text, max) {
+    const t = (text || '').trim();
+    return t.length > max ? `${t.slice(0, max)}...` : t;
+  }
+
+  function diffProposalForChat(oldData, newData) {
+    const changes = [];
+
+    Object.keys(CHAT_SIMPLE_FIELD_LABELS).forEach((key) => {
+      const oldVal = (oldData[key] || '').trim();
+      const newVal = (newData[key] || '').trim();
+      if (oldVal !== newVal) {
+        changes.push(`${CHAT_SIMPLE_FIELD_LABELS[key]}: "${truncateForChat(oldVal, 60) || '(empty)'}" -> "${truncateForChat(newVal, 60) || '(empty)'}"`);
+      }
+    });
+
+    const oldSupplied = oldData.clientSupplied || [];
+    const newSupplied = newData.clientSupplied || [];
+    newSupplied.filter((t) => !oldSupplied.includes(t)).forEach((t) => changes.push(`+ Client-supplied item: "${t}"`));
+    oldSupplied.filter((t) => !newSupplied.includes(t)).forEach((t) => changes.push(`- Client-supplied item: "${t}"`));
+
+    const oldSections = oldData.sections || [];
+    const newSections = newData.sections || [];
+    const oldTitles = oldSections.map((s) => s.title);
+    const newTitles = newSections.map((s) => s.title);
+    newTitles.filter((t) => !oldTitles.includes(t)).forEach((t) => changes.push(`+ Room added: "${t}"`));
+    oldTitles.filter((t) => !newTitles.includes(t)).forEach((t) => changes.push(`- Room removed: "${t}"`));
+
+    newSections.forEach((newSection) => {
+      const oldSection = oldSections.find((s) => s.title === newSection.title);
+      if (!oldSection) return;
+      const oldPrice = Number(oldSection.price) || 0;
+      const newPrice = Number(newSection.price) || 0;
+      if (oldPrice !== newPrice) {
+        changes.push(`${newSection.title} price: $${oldPrice.toLocaleString('en-US')} -> $${newPrice.toLocaleString('en-US')}`);
+      }
+      const oldBullets = [...(oldSection.leftScope || []), ...(oldSection.rightScope || [])].map((it) => it.text);
+      const newBullets = [...(newSection.leftScope || []), ...(newSection.rightScope || [])].map((it) => it.text);
+      newBullets.filter((t) => !oldBullets.includes(t)).forEach((t) => changes.push(`+ ${newSection.title}: "${t}"`));
+      oldBullets.filter((t) => !newBullets.includes(t)).forEach((t) => changes.push(`- ${newSection.title}: "${t}"`));
+    });
+
+    const oldPT = oldData.paymentTerms;
+    const newPT = newData.paymentTerms;
+    if (!oldPT && newPT) {
+      changes.push('+ Payment terms added');
+    } else if (oldPT && !newPT) {
+      changes.push('- Payment terms removed');
+    } else if (oldPT && newPT && (oldPT.lines.length !== newPT.lines.length || (oldPT.note || '') !== (newPT.note || ''))) {
+      changes.push(`Payment terms changed (${newPT.lines.length} line${newPT.lines.length === 1 ? '' : 's'})`);
+    }
+
+    return changes;
+  }
+
+  function applyEditedProposal(newData) {
+    el('notes').value = newData.notes || '';
+    el('termsAndConditions').value = newData.termsAndConditions || '';
+    el('totalLabel').value = newData.totalLabel || '';
+    el('investmentNote').value = newData.investmentNote || '';
+    el('expirationDate').value = newData.expirationDate || '';
+
+    state.sections = (newData.sections || []).map((s) => ({
+      id: nextSectionId(),
+      title: s.title || '',
+      subtitle: s.subtitle || '',
+      price: Number(s.price) || 0,
+      priceLabel: s.priceLabel || '',
+      description: '',
+      scopeStatus: null,
+      leftScope: (s.leftScope || []).map((it) => ({ ...it })),
+      rightScope: (s.rightScope || []).map((it) => ({ ...it })),
+    }));
+    state.clientSupplied = Array.isArray(newData.clientSupplied) ? [...newData.clientSupplied] : [];
+
+    if (newData.paymentTerms && Array.isArray(newData.paymentTerms.lines)) {
+      el('paymentTermsToggle').checked = true;
+      el('paymentTermsPanel').classList.remove('is-hidden');
+      state.paymentTermLines = newData.paymentTerms.lines.map((l) => ({ label: l.label || '', amount: l.amount || 0 }));
+      el('paymentTermsNote').value = newData.paymentTerms.note || '';
+    } else {
+      el('paymentTermsToggle').checked = false;
+      el('paymentTermsPanel').classList.add('is-hidden');
+      state.paymentTermLines = [];
+    }
+
+    renderRooms();
+    renderClientSupplied();
+    renderPaymentTermLines();
+    recalcTotals();
+    schedulePreviewRefresh();
+  }
+
+  const chatInstructionEl = el('chatInstruction');
+  const chatLogEl = el('chatLog');
+  const chatEntryTemplate = el('chatEntryTemplate');
+  let pendingChatEntry = null;
+
+  function createChatEntry(instructionText) {
+    const fragment = chatEntryTemplate.content.cloneNode(true);
+    const entry = fragment.querySelector('.chat-entry');
+    entry.querySelector('.chat-entry-instruction').textContent = instructionText;
+    chatLogEl.appendChild(entry);
+    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+    return entry;
+  }
+
+  function setChatEntryNote(entry, text, isError) {
+    const noteEl = entry.querySelector('.chat-entry-note');
+    noteEl.textContent = text;
+    noteEl.className = isError ? 'chat-entry-note error' : 'chat-entry-note';
+  }
+
+  function clearPendingChatEntry() {
+    if (!pendingChatEntry) return;
+    pendingChatEntry.querySelector('.chat-entry-actions').innerHTML = '';
+    pendingChatEntry.querySelector('.chat-entry-changes').innerHTML = '';
+    pendingChatEntry = null;
+  }
+
+  async function sendChatInstruction() {
+    const instruction = chatInstructionEl.value.trim();
+    if (!instruction) return;
+
+    clearPendingChatEntry();
+
+    const entry = createChatEntry(instruction);
+    setChatEntryNote(entry, 'Thinking...');
+    chatInstructionEl.value = '';
+
+    const snapshot = collectProposalData();
+    try {
+      const res = await fetch('/api/generate-full-proposal?mode=edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal: snapshot, instruction }),
+      });
+      const newData = await res.json();
+      if (!res.ok) throw new Error(newData.error || 'Edit failed');
+
+      const changes = diffProposalForChat(snapshot, newData);
+      if (!changes.length) {
+        setChatEntryNote(entry, 'No changes detected — try rephrasing.');
+        return;
+      }
+
+      setChatEntryNote(entry, '');
+      const changesList = entry.querySelector('.chat-entry-changes');
+      changes.forEach((c) => {
+        const li = document.createElement('li');
+        li.textContent = c;
+        changesList.appendChild(li);
+      });
+
+      const actionsEl = entry.querySelector('.chat-entry-actions');
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'btn-add-small';
+      applyBtn.textContent = 'Apply';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'btn-add-small';
+      cancelBtn.textContent = 'Cancel';
+      applyBtn.addEventListener('click', () => {
+        applyEditedProposal(newData);
+        actionsEl.innerHTML = '';
+        changesList.innerHTML = '';
+        setChatEntryNote(entry, 'Applied.');
+        pendingChatEntry = null;
+      });
+      cancelBtn.addEventListener('click', () => {
+        actionsEl.innerHTML = '';
+        changesList.innerHTML = '';
+        setChatEntryNote(entry, 'Cancelled.');
+        pendingChatEntry = null;
+      });
+      actionsEl.appendChild(applyBtn);
+      actionsEl.appendChild(cancelBtn);
+      pendingChatEntry = entry;
+    } catch (err) {
+      setChatEntryNote(entry, `Could not apply edit: ${err.message}`, true);
+    }
+    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+  }
+
+  el('chatSendBtn').addEventListener('click', sendChatInstruction);
+
   // ---- Rooms & Scope --------------------------------------------------------
 
   function addRoom() {

@@ -19,6 +19,12 @@
       <div id="editingIndicator" class="editing-indicator is-hidden"></div>
     </div>
 
+    <div class="chat-panel">
+      <textarea id="chatInstruction" rows="2" placeholder="Tell it what to change (e.g. &quot;add the Studio41 discount note&quot; or &quot;bump the kitchen price to 45k&quot;)"></textarea>
+      <button type="button" class="btn-add" id="chatSendBtn">Send</button>
+      <div id="chatLog" class="chat-log"></div>
+    </div>
+
     <details class="accordion-group">
       <summary>Import &amp; Client Info</summary>
       <div class="accordion-body">
@@ -240,6 +246,15 @@
       <button type="button" class="btn-add-small custom-note-save">Save</button>
       <button type="button" class="btn-remove custom-note-remove" title="Delete">×</button>
     </div>
+  </div>
+</template>
+
+<template id="chatEntryTemplate">
+  <div class="chat-entry">
+    <div class="chat-entry-instruction"></div>
+    <div class="chat-entry-note"></div>
+    <ul class="chat-entry-changes"></ul>
+    <div class="chat-entry-actions"></div>
   </div>
 </template>
 
