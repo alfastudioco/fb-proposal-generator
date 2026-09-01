@@ -95,7 +95,7 @@ const EDIT_TOOL = {
         },
       },
     },
-    required: ['sections', 'notes', 'termsAndConditions', 'totalLabel', 'clientSupplied'],
+    required: ['sections', 'notes', 'termsAndConditions', 'totalLabel', 'investmentNote', 'expirationDate', 'clientSupplied', 'paymentTerms'],
   },
 };
 
@@ -192,6 +192,10 @@ items, and payment terms (if present) -- with only the requested change applied.
       tool_choice: { type: 'tool', name: 'apply_proposal_edit' },
       messages: [{ role: 'user', content: prompt }],
     });
+
+    if (response.stop_reason === 'max_tokens') {
+      throw new Error('This proposal is too large to edit in one pass — try a narrower instruction or a smaller proposal.');
+    }
 
     const toolUse = response.content.find((block) => block.type === 'tool_use');
     if (!toolUse) throw new Error('Model did not return a structured edit');

@@ -587,6 +587,13 @@ a.btn-file { display: inline-block; text-decoration: none; }
   border-radius: 6px;
   background: var(--notes-bg);
 }
+.chat-panel h2 {
+  font-size: 12px;
+  color: var(--navy);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
 .chat-panel textarea {
   width: 100%;
   padding: 6px 8px;

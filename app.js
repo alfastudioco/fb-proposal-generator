@@ -464,6 +464,16 @@
       if (oldPrice !== newPrice) {
         changes.push(`${newSection.title} price: $${oldPrice.toLocaleString('en-US')} -> $${newPrice.toLocaleString('en-US')}`);
       }
+      const oldSubtitle = (oldSection.subtitle || '').trim();
+      const newSubtitle = (newSection.subtitle || '').trim();
+      if (oldSubtitle !== newSubtitle) {
+        changes.push(`${newSection.title} subtitle: "${oldSubtitle}" -> "${newSubtitle}"`);
+      }
+      const oldPriceLabel = (oldSection.priceLabel || '').trim();
+      const newPriceLabel = (newSection.priceLabel || '').trim();
+      if (oldPriceLabel !== newPriceLabel) {
+        changes.push(`${newSection.title} priceLabel: "${oldPriceLabel}" -> "${newPriceLabel}"`);
+      }
       const oldBullets = [...(oldSection.leftScope || []), ...(oldSection.rightScope || [])].map((it) => it.text);
       const newBullets = [...(newSection.leftScope || []), ...(newSection.rightScope || [])].map((it) => it.text);
       newBullets.filter((t) => !oldBullets.includes(t)).forEach((t) => changes.push(`+ ${newSection.title}: "${t}"`));
@@ -476,8 +486,16 @@
       changes.push('+ Payment terms added');
     } else if (oldPT && !newPT) {
       changes.push('- Payment terms removed');
-    } else if (oldPT && newPT && (oldPT.lines.length !== newPT.lines.length || (oldPT.note || '') !== (newPT.note || ''))) {
-      changes.push(`Payment terms changed (${newPT.lines.length} line${newPT.lines.length === 1 ? '' : 's'})`);
+    } else if (oldPT && newPT) {
+      const oldLineCount = (oldPT.lines || []).length;
+      const newLineCount = (newPT.lines || []).length;
+      if (oldLineCount !== newLineCount || (oldPT.note || '') !== (newPT.note || '')) {
+        changes.push(`Payment terms changed (${newLineCount} line${newLineCount === 1 ? '' : 's'})`);
+      }
+    }
+
+    if (!changes.length && JSON.stringify(oldData) !== JSON.stringify(newData)) {
+      changes.push('Other changes: ordering or formatting');
     }
 
     return changes;
@@ -544,9 +562,11 @@
 
   function clearPendingChatEntry() {
     if (!pendingChatEntry) return;
-    pendingChatEntry.querySelector('.chat-entry-actions').innerHTML = '';
-    pendingChatEntry.querySelector('.chat-entry-changes').innerHTML = '';
+    const entry = pendingChatEntry;
+    entry.querySelector('.chat-entry-actions').innerHTML = '';
+    entry.querySelector('.chat-entry-changes').innerHTML = '';
     pendingChatEntry = null;
+    setChatEntryNote(entry, 'Superseded by a newer request.');
   }
 
   async function sendChatInstruction() {
