@@ -433,6 +433,32 @@
     return t.length > max ? `${t.slice(0, max)}...` : t;
   }
 
+  // Normalizes a proposal object down to exactly the fields the chat-edit
+  // tool can change, in a fixed key order, so the "Other changes" fallback
+  // below can compare oldData (a full collectProposalData() snapshot, with
+  // extra fields like proposalNum/date/client the tool never returns) against
+  // newData (the tool's minimal response shape) without those structural
+  // differences alone making every response look changed.
+  function chatEditableSubset(data) {
+    return {
+      sections: (data.sections || []).map((s) => ({
+        title: s.title || '',
+        subtitle: (s.subtitle || '').trim(),
+        price: Number(s.price) || 0,
+        priceLabel: s.priceLabel || '',
+        leftScope: (s.leftScope || []).map((it) => ({ type: it.type, text: it.text })),
+        rightScope: (s.rightScope || []).map((it) => ({ type: it.type, text: it.text })),
+      })),
+      notes: (data.notes || '').trim(),
+      termsAndConditions: (data.termsAndConditions || '').trim(),
+      totalLabel: (data.totalLabel || '').trim(),
+      investmentNote: (data.investmentNote || '').trim(),
+      expirationDate: (data.expirationDate || '').trim(),
+      clientSupplied: data.clientSupplied || [],
+      paymentTerms: data.paymentTerms || null,
+    };
+  }
+
   function diffProposalForChat(oldData, newData) {
     const changes = [];
 
@@ -494,7 +520,7 @@
       }
     }
 
-    if (!changes.length && JSON.stringify(oldData) !== JSON.stringify(newData)) {
+    if (!changes.length && JSON.stringify(chatEditableSubset(oldData)) !== JSON.stringify(chatEditableSubset(newData))) {
       changes.push('Other changes: ordering or formatting');
     }
 
