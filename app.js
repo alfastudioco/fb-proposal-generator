@@ -315,6 +315,109 @@
     renderRooms();
   }
 
+  // ---- Custom notes library (user-managed, backed by fbpg_note_snippets) ----
+  // Supplements the hardcoded SNIPPETS.notes list above with notes the user
+  // adds themselves through the "Manage custom notes" panel, without needing
+  // a code change. Loaded async on init and appended to the same dropdown.
+
+  const notesSelect = el('notesSnippetSelect');
+  const customNotesList = el('customNotesList');
+  const customNoteItemTemplate = el('customNoteItemTemplate');
+  const customNoteStatus = el('customNoteStatus');
+  let customNotes = [];
+
+  function setCustomNoteStatus(message, isError) {
+    customNoteStatus.textContent = message || '';
+    customNoteStatus.className = isError ? 'generate-status error' : 'generate-status';
+  }
+
+  function refreshCustomNoteOptions() {
+    notesSelect.querySelectorAll('option.custom-note-option').forEach((opt) => opt.remove());
+    for (const note of customNotes) {
+      const opt = document.createElement('option');
+      opt.className = 'custom-note-option';
+      opt.value = note.text;
+      opt.textContent = note.label;
+      notesSelect.appendChild(opt);
+    }
+  }
+
+  function renderCustomNotesList() {
+    customNotesList.innerHTML = '';
+    for (const note of customNotes) {
+      const fragment = customNoteItemTemplate.content.cloneNode(true);
+      const item = fragment.querySelector('.custom-note-item');
+      const labelInput = item.querySelector('.custom-note-item-label');
+      const textInput = item.querySelector('.custom-note-item-text');
+      labelInput.value = note.label;
+      textInput.value = note.text;
+
+      item.querySelector('.custom-note-save').addEventListener('click', async () => {
+        await saveCustomNote(note.id, labelInput.value, textInput.value);
+      });
+      item.querySelector('.custom-note-remove').addEventListener('click', async () => {
+        await deleteCustomNote(note.id);
+      });
+
+      customNotesList.appendChild(item);
+    }
+  }
+
+  async function loadCustomNotes() {
+    try {
+      const res = await fetch('/api/note-snippets');
+      if (!res.ok) throw new Error('Could not load custom notes');
+      const body = await res.json();
+      customNotes = body.noteSnippets || [];
+      renderCustomNotesList();
+      refreshCustomNoteOptions();
+    } catch (err) {
+      setCustomNoteStatus(`Could not load custom notes: ${err.message}`, true);
+    }
+  }
+
+  async function saveCustomNote(id, label, text) {
+    if (!label.trim() || !text.trim()) {
+      setCustomNoteStatus('Label and text are both required.', true);
+      return;
+    }
+    try {
+      const res = await fetch('/api/note-snippets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, label: label.trim(), text: text.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Save failed');
+      setCustomNoteStatus(id ? 'Note updated.' : 'Note added.');
+      await loadCustomNotes();
+    } catch (err) {
+      setCustomNoteStatus(`Could not save note: ${err.message}`, true);
+    }
+  }
+
+  async function deleteCustomNote(id) {
+    try {
+      const res = await fetch(`/api/note-snippets?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Delete failed');
+      setCustomNoteStatus('Note deleted.');
+      await loadCustomNotes();
+    } catch (err) {
+      setCustomNoteStatus(`Could not delete note: ${err.message}`, true);
+    }
+  }
+
+  el('addCustomNoteBtn').addEventListener('click', async () => {
+    const labelInput = el('customNoteLabel');
+    const textInput = el('customNoteText');
+    await saveCustomNote(null, labelInput.value, textInput.value);
+    if (!customNoteStatus.classList.contains('error')) {
+      labelInput.value = '';
+      textInput.value = '';
+    }
+  });
+
   // ---- Rooms & Scope --------------------------------------------------------
 
   function addRoom() {
@@ -1099,6 +1202,7 @@
 
   async function init() {
     populateSnippetSelects();
+    loadCustomNotes();
     const editId = new URLSearchParams(location.search).get('edit');
     if (editId) {
       await loadProposalForEdit(editId);

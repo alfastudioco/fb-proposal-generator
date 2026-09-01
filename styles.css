@@ -372,6 +372,59 @@ button {
 }
 .generate-status.error { color: #b3261e; }
 
+.notes-library-manager {
+  margin-top: 10px;
+  font-size: 11px;
+}
+.notes-library-manager summary {
+  cursor: pointer;
+  color: var(--gray);
+  margin-bottom: 8px;
+}
+.custom-note-item {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px;
+  margin-bottom: 6px;
+}
+.custom-note-item-label {
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+.custom-note-item-text {
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+.custom-note-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+.custom-note-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.custom-note-add input,
+.custom-note-add textarea {
+  padding: 5px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
+
 .download-links {
   margin-top: 10px;
   display: flex;

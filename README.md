@@ -67,6 +67,8 @@ On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`,
 
 `POST /api/generate-budget-from-blueprints` — body `{ paths: string[], notes? }` (`paths` from the endpoint above, up to 15 files, ~18MB combined). Returns `{ sections, priceRationale, notes, clientSupplied }` — the same shape `/api/generate-full-proposal` returns — drafted by reading the uploaded blueprint/plan files with Claude's vision.
 
+`GET /api/note-snippets` — lists the user-managed library of reusable "Additional Notes" snippets (`fbpg_note_snippets`), returned as `{ noteSnippets: [{id, label, text}] }`. These supplement (don't replace) the hardcoded notes in `snippets.js`, and are managed from the "Manage custom notes" panel under Additional Notes & Exclusions in the UI — no code change needed to add one. `POST /api/note-snippets` creates (`{label, text}`) or updates (`{id, label, text}`) one; `DELETE /api/note-snippets?id=` removes one.
+
 ## Known limitations
 
 - **Blueprint uploads are capped at 15 files / ~18MB combined**, to keep the AI read comfortably inside Vercel Hobby's 60s function limit. Large plan sets need trimming to the relevant sheets (typically floor plans) or splitting into two uploads. CAD files (DWG/DXF) aren't supported -- export/plot to PDF first. Uploaded blueprint files are deleted immediately after each request and are never retained. If the browser's upload step fails partway through a multi-file batch, already-uploaded files for that batch are not automatically cleaned up (no bucket lifecycle rule is configured yet) -- low-stakes for this single-tenant internal tool, but worth knowing.

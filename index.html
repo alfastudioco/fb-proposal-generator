@@ -84,6 +84,17 @@
         </select>
       </div>
       <textarea id="notes" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
+
+      <details class="notes-library-manager">
+        <summary>Manage custom notes…</summary>
+        <div id="customNotesList"></div>
+        <div class="custom-note-add">
+          <input type="text" id="customNoteLabel" placeholder="Short label (shown in the dropdown)">
+          <textarea id="customNoteText" rows="2" placeholder="Full note text to insert"></textarea>
+          <button type="button" class="btn-add" id="addCustomNoteBtn">+ Add Note</button>
+        </div>
+        <div id="customNoteStatus" class="generate-status"></div>
+      </details>
     </section>
 
     <section class="panel">
@@ -198,6 +209,17 @@
     <input type="text" class="payment-term-label" placeholder="e.g. Deposit due at signing">
     <input type="number" class="payment-term-amount" placeholder="0">
     <button type="button" class="btn-remove payment-term-remove" title="Remove">×</button>
+  </div>
+</template>
+
+<template id="customNoteItemTemplate">
+  <div class="custom-note-item">
+    <input type="text" class="custom-note-item-label" placeholder="Short label">
+    <textarea class="custom-note-item-text" rows="2" placeholder="Full note text"></textarea>
+    <div class="custom-note-item-actions">
+      <button type="button" class="btn-add-small custom-note-save">Save</button>
+      <button type="button" class="btn-remove custom-note-remove" title="Delete">×</button>
+    </div>
   </div>
 </template>
 

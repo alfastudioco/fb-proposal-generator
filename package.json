@@ -13,7 +13,8 @@
     "smoke-test-public-config": "node scripts/smoke-test-public-config.js",
     "smoke-test-draft-tool-schema": "node scripts/smoke-test-draft-tool-schema.js",
     "smoke-test-blueprint-upload-url": "node scripts/smoke-test-blueprint-upload-url.js",
-    "smoke-test-generate-budget-from-blueprints": "node scripts/smoke-test-generate-budget-from-blueprints.js"
+    "smoke-test-generate-budget-from-blueprints": "node scripts/smoke-test-generate-budget-from-blueprints.js",
+    "smoke-test-note-snippets": "node scripts/smoke-test-note-snippets.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

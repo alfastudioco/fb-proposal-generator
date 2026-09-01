@@ -56,9 +56,20 @@ alter table fbpg_proposals add column if not exists terms_and_conditions text;
 alter table fbpg_proposals add column if not exists client_supplied jsonb;
 alter table fbpg_proposals add column if not exists investment_note text;
 
+-- Phase 4: user-managed library of reusable "Additional Notes" snippets
+-- (e.g. vendor-discount language, showroom access) that supplement the
+-- hardcoded list in snippets.js without requiring a code change to add.
+create table if not exists fbpg_note_snippets (
+  id uuid primary key default uuid_generate_v4(),
+  label text not null,
+  text text not null,
+  created_at timestamptz not null default now()
+);
+
 -- RLS: deny-by-default. All reads/writes happen server-side in
 -- api/generate.js using the service role key, which bypasses RLS
 -- automatically — no policies are added for anon/authenticated roles,
 -- since client PII (name, address, phone, email) lives in these tables.
 alter table fbpg_clients enable row level security;
 alter table fbpg_proposals enable row level security;
+alter table fbpg_note_snippets enable row level security;
