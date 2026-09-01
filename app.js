@@ -524,6 +524,7 @@
   const chatInstructionEl = el('chatInstruction');
   const chatLogEl = el('chatLog');
   const chatEntryTemplate = el('chatEntryTemplate');
+  const chatSendBtn = el('chatSendBtn');
   let pendingChatEntry = null;
 
   function createChatEntry(instructionText) {
@@ -557,6 +558,9 @@
     const entry = createChatEntry(instruction);
     setChatEntryNote(entry, 'Thinking...');
     chatInstructionEl.value = '';
+
+    chatSendBtn.disabled = true;
+    chatInstructionEl.disabled = true;
 
     const snapshot = collectProposalData();
     try {
@@ -609,11 +613,14 @@
       pendingChatEntry = entry;
     } catch (err) {
       setChatEntryNote(entry, `Could not apply edit: ${err.message}`, true);
+    } finally {
+      chatSendBtn.disabled = false;
+      chatInstructionEl.disabled = false;
     }
     chatLogEl.scrollTop = chatLogEl.scrollHeight;
   }
 
-  el('chatSendBtn').addEventListener('click', sendChatInstruction);
+  chatSendBtn.addEventListener('click', sendChatInstruction);
 
   // ---- Rooms & Scope --------------------------------------------------------
 
