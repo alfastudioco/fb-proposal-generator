@@ -143,7 +143,7 @@
     }
   });
 
-  // ---- Import an entire proposal from a QuickBooks PDF -----------------------
+  // ---- Import an entire proposal from an uploaded invoice/estimate document --
 
   function readFileAsBase64(file) {
     return new Promise((resolve, reject) => {
@@ -154,9 +154,10 @@
     });
   }
 
-  // Wholesale-replaces the current form/state with an AI-extracted QuickBooks
-  // proposal -- this is a "start a new proposal" action, not a merge, so any
-  // in-progress edits to the current form are discarded.
+  // Wholesale-replaces the current form/state with an AI-extracted proposal
+  // (from a document import or an AI draft) -- this is a "start a new
+  // proposal" action, not a merge, so any in-progress edits to the current
+  // form are discarded.
   function loadImportedProposal(data) {
     state.editingId = null;
     state.clientId = null;
@@ -208,26 +209,29 @@
     previewProposal();
   }
 
-  el('importQuickbooksBtn').addEventListener('click', async () => {
-    const fileInput = el('quickbooksPdfInput');
-    const statusEl = el('quickbooksImportStatus');
+  el('importDocumentBtn').addEventListener('click', async () => {
+    const fileInput = el('importDocumentInput');
+    const statusEl = el('importDocumentStatus');
     const file = fileInput.files && fileInput.files[0];
     if (!file) {
-      statusEl.textContent = 'Choose a PDF first.';
+      statusEl.textContent = 'Choose a file first.';
       statusEl.className = 'generate-status error';
       return;
     }
 
-    statusEl.textContent = 'Reading PDF…';
+    statusEl.textContent = 'Reading file…';
     statusEl.className = 'generate-status';
+    el('clientMatchPanel').classList.add('is-hidden');
 
     try {
-      const pdfBase64 = await readFileAsBase64(file);
+      const isPdf = file.type === 'application/pdf';
+      const fileBase64 = isPdf ? await readFileAsBase64(file) : await downscaleImageToBase64(file);
+      const mediaType = isPdf ? 'application/pdf' : 'image/jpeg';
       statusEl.textContent = 'Importing and rewriting scope — this can take a minute…';
-      const res = await fetch('/api/import-quickbooks', {
+      const res = await fetch('/api/import-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64 }),
+        body: JSON.stringify({ fileBase64, mediaType }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -237,6 +241,7 @@
       }
 
       loadImportedProposal(body);
+      renderClientMatches(body.matches);
       fileInput.value = '';
       statusEl.textContent = 'Imported — review pricing and scope before generating.';
       statusEl.className = 'generate-status';
@@ -824,7 +829,7 @@
   // ---- Draft an entire proposal from one plain-language description ---------
   //
   // Appends AI-drafted rooms to whatever's already on the form (unlike the
-  // QuickBooks import, this doesn't reset the proposal) -- it's meant as a
+  // document import, this doesn't reset the proposal) -- it's meant as a
   // fast starting point for a from-scratch proposal, one paragraph instead
   // of adding rooms and running "Generate Scope" one at a time.
 
@@ -893,8 +898,8 @@
   // ---- Draft a full proposal from uploaded blueprint/plan files -------------
   //
   // Same append-to-current-state behavior as "Draft Full Proposal from
-  // Description" above (not a reset like the QuickBooks import) -- plans
-  // don't carry client contact info the way a QuickBooks estimate does, so
+  // Description" above (not a reset like the document import) -- plans
+  // don't carry client contact info the way an invoice/estimate does, so
   // there's no client-info payload to wholesale-replace the form with.
 
   const BLUEPRINT_MAX_FILES = 15;

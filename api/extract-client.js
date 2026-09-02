@@ -1,5 +1,6 @@
 const { getAnthropicClient } = require('../lib/anthropic');
 const { getSupabaseClient } = require('../lib/supabase');
+const { findClientMatches } = require('../lib/clientMatching');
 
 const MODEL = 'claude-sonnet-5';
 const ALLOWED_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -46,25 +47,6 @@ async function extractClientFromImage(imageBase64, mediaType) {
   const toolUse = response.content.find((block) => block.type === 'tool_use');
   if (!toolUse) throw new Error('Model did not return structured client info');
   return toolUse.input;
-}
-
-async function findClientMatches(supabase, client) {
-  const filters = [];
-  if (client.phone) filters.push(`phone.eq.${client.phone}`);
-  if (client.email) filters.push(`email.eq.${client.email}`);
-  if (client.name) filters.push(`name.ilike.%${client.name}%`);
-  if (!filters.length) return [];
-
-  const { data, error } = await supabase
-    .from('fbpg_clients')
-    .select('id, name, address, phone, email')
-    .or(filters.join(','))
-    .limit(5);
-  if (error) {
-    console.error('Client match lookup failed (non-fatal):', error);
-    return [];
-  }
-  return data;
 }
 
 module.exports = async function handler(req, res) {

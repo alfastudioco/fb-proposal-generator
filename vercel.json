@@ -10,7 +10,7 @@
     "api/generate-scope.js": {
       "maxDuration": 30
     },
-    "api/import-quickbooks.js": {
+    "api/import-document.js": {
       "maxDuration": 60
     },
     "api/generate-full-proposal.js": {
