@@ -44,6 +44,7 @@
   // ---- Client info extraction from an image ----------------------------------
 
   const MAX_IMAGE_DIMENSION = 1200;
+  const MAX_ROOM_LAYOUT_IMAGES = 5;
 
   // Downscales via <canvas> before base64-encoding -- keeps the request well
   // under Vercel's ~4.5MB body limit and keeps vision latency/cost down.
@@ -684,7 +685,7 @@
     renderRooms();
   }
 
-  async function generateScopeForRoom(sectionId, description) {
+  async function generateScopeForRoom(sectionId, description, images) {
     const section = state.sections.find((s) => s.id === sectionId);
     if (!section) return;
     if (!description.trim()) {
@@ -700,7 +701,7 @@
       const res = await fetch('/api/generate-scope', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description, roomTitle: section.title }),
+        body: JSON.stringify({ description, roomTitle: section.title, images }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -794,8 +795,17 @@
         scopeStatusEl.className = `room-scope-status${section.scopeStatus.error ? ' error' : ''}`;
       }
 
-      card.querySelector('.generate-scope-btn').addEventListener('click', () => {
-        generateScopeForRoom(section.id, descTextarea.value);
+      const layoutImageInput = card.querySelector('.room-layout-image');
+      card.querySelector('.generate-scope-btn').addEventListener('click', async () => {
+        const imageFiles = layoutImageInput.files ? Array.from(layoutImageInput.files) : [];
+        if (imageFiles.length > MAX_ROOM_LAYOUT_IMAGES) {
+          section.scopeStatus = { text: `No more than ${MAX_ROOM_LAYOUT_IMAGES} layout photos per generation.`, error: true };
+          renderRooms();
+          return;
+        }
+        const images = imageFiles.length ? await Promise.all(imageFiles.map(downscaleImageToBase64)) : undefined;
+        layoutImageInput.value = '';
+        generateScopeForRoom(section.id, descTextarea.value, images);
       });
 
       for (const side of ['left', 'right']) {

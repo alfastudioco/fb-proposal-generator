@@ -59,7 +59,7 @@ On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`,
 
 `GET /api/clients?q=` / `POST /api/clients` — search `fbpg_clients` by name, or create/update a client record (`{id?, name, address, phone, email}`).
 
-`POST /api/generate-scope` — body `{ description, roomTitle? }`. Returns `{ items, suggestedPrice, priceRationale }`, grounded in `snippets.js`'s real scope-of-work library and past proposal pricing.
+`POST /api/generate-scope` — body `{ description, roomTitle?, images? }` (`images` is an array of up to 5 base64-encoded photos — e.g. different floors/areas covered by this one section — read together with the description). Returns `{ items, suggestedPrice, priceRationale }`, grounded in `snippets.js`'s real scope-of-work library and past proposal pricing.
 
 `POST /api/generate-full-proposal` — body `{ description }`. Returns `{ sections, priceRationale, notes, clientSupplied }` — drafted from a full-project plain-language description.
 
