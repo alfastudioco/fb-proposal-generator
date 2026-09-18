@@ -424,6 +424,97 @@
     }
   });
 
+  // ---- Status library (user-managed, backed by fbpg_statuses) ---------------
+  // Populates the Status dropdown from fbpg_statuses (seeded with the
+  // default Draft/Sent/Pending/Sold/Lost pipeline stages) plus any custom
+  // ones added through the "Manage statuses" panel.
+
+  const statusSelect = el('proposalStatus');
+  const customStatusList = el('customStatusList');
+  const customStatusItemTemplate = el('customStatusItemTemplate');
+  const customStatusStatus = el('customStatusStatus');
+  let customStatuses = [];
+
+  function setCustomStatusStatus(message, isError) {
+    customStatusStatus.textContent = message || '';
+    customStatusStatus.className = isError ? 'generate-status error' : 'generate-status';
+  }
+
+  function refreshStatusSelectOptions(selectedLabel) {
+    const previous = selectedLabel ?? statusSelect.value;
+    statusSelect.innerHTML = '';
+    for (const status of customStatuses) {
+      const opt = document.createElement('option');
+      opt.value = status.label;
+      opt.textContent = status.label;
+      statusSelect.appendChild(opt);
+    }
+    statusSelect.value = previous || 'Sent';
+  }
+
+  function renderCustomStatusesList() {
+    customStatusList.innerHTML = '';
+    for (const status of customStatuses) {
+      const fragment = customStatusItemTemplate.content.cloneNode(true);
+      fragment.querySelector('.custom-status-item-label').textContent = status.label;
+      fragment.querySelector('.custom-status-remove').addEventListener('click', async () => {
+        await deleteCustomStatus(status.id);
+      });
+      customStatusList.appendChild(fragment);
+    }
+  }
+
+  async function loadCustomStatuses(selectedLabel) {
+    try {
+      const res = await fetch('/api/clients?resource=statuses');
+      if (!res.ok) throw new Error('Could not load statuses');
+      const body = await res.json();
+      customStatuses = body.statuses || [];
+      renderCustomStatusesList();
+      refreshStatusSelectOptions(selectedLabel);
+    } catch (err) {
+      setCustomStatusStatus(`Could not load statuses: ${err.message}`, true);
+    }
+  }
+
+  async function saveCustomStatus(label) {
+    if (!label.trim()) {
+      setCustomStatusStatus('A status name is required.', true);
+      return;
+    }
+    try {
+      const res = await fetch('/api/clients?resource=statuses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: label.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Save failed');
+      setCustomStatusStatus('Status added.');
+      await loadCustomStatuses(label.trim());
+    } catch (err) {
+      setCustomStatusStatus(`Could not add status: ${err.message}`, true);
+    }
+  }
+
+  async function deleteCustomStatus(id) {
+    try {
+      const res = await fetch(`/api/clients?resource=statuses&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Delete failed');
+      setCustomStatusStatus('Status deleted.');
+      await loadCustomStatuses();
+    } catch (err) {
+      setCustomStatusStatus(`Could not delete status: ${err.message}`, true);
+    }
+  }
+
+  el('addCustomStatusBtn').addEventListener('click', async () => {
+    const labelInput = el('customStatusLabel');
+    await saveCustomStatus(labelInput.value);
+    if (!customStatusStatus.classList.contains('error')) labelInput.value = '';
+  });
+
   // ---- Chat-driven proposal edits (mode=edit) --------------------------------
 
   const CHAT_SIMPLE_FIELD_LABELS = {
@@ -1179,6 +1270,11 @@
       expirationDate: el('expirationDate').value.trim() || undefined,
       termsAndConditions: el('termsAndConditions').value.trim() || undefined,
       paymentTerms: collectPaymentTerms(forPreview),
+      status: el('proposalStatus').value || 'Sent',
+      depositAmount: el('depositAmount').value.trim() !== '' ? Number(el('depositAmount').value) : undefined,
+      depositDate: el('depositDate').value.trim() || undefined,
+      balanceDue: el('balanceDue').value.trim() !== '' ? Number(el('balanceDue').value) : undefined,
+      paymentNotes: el('paymentNotes').value.trim() || undefined,
     };
   }
 
@@ -1211,6 +1307,11 @@
       el('investmentNote').value = p.investment_note || '';
       el('expirationDate').value = p.expiration_date || '';
       el('termsAndConditions').value = p.terms_and_conditions || '';
+      refreshStatusSelectOptions(p.status || 'Sent');
+      el('depositAmount').value = p.deposit_amount ?? '';
+      el('depositDate').value = p.deposit_date || '';
+      el('balanceDue').value = p.balance_due ?? '';
+      el('paymentNotes').value = p.payment_notes || '';
 
       state.editingId = id;
       state.clientId = p.client_id ?? null;
@@ -1468,6 +1569,7 @@
   async function init() {
     populateSnippetSelects();
     loadCustomNotes();
+    await loadCustomStatuses();
     const editId = new URLSearchParams(location.search).get('edit');
     if (editId) {
       await loadProposalForEdit(editId);

@@ -118,6 +118,11 @@ module.exports = async function handler(req, res) {
       payment_terms: data.paymentTerms ?? null,
       expiration_date: data.expirationDate ?? null,
       terms_and_conditions: data.termsAndConditions ?? null,
+      status: data.status || 'Sent',
+      deposit_amount: data.depositAmount ?? null,
+      deposit_date: data.depositDate ?? null,
+      balance_due: data.balanceDue ?? null,
+      payment_notes: data.paymentNotes ?? null,
       docx_storage_path: docxPath,
       pdf_storage_path: pdfPath,
     };

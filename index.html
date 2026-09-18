@@ -148,6 +148,29 @@
             <label>Note (optional, italic)<input type="text" id="paymentTermsNote" placeholder="Balance due upon substantial completion"></label>
           </div>
         </section>
+
+        <section class="panel">
+          <h2>Status &amp; Payment Tracking</h2>
+          <p class="field-hint">Internal tracking only -- not shown on the generated proposal document.</p>
+          <label>Status<select id="proposalStatus"></select></label>
+
+          <details class="notes-library-manager">
+            <summary>Manage statuses…</summary>
+            <div id="customStatusList"></div>
+            <div class="custom-note-add">
+              <input type="text" id="customStatusLabel" placeholder="New status (e.g. Change Order Pending)">
+              <button type="button" class="btn-add" id="addCustomStatusBtn">+ Add Status</button>
+            </div>
+            <div id="customStatusStatus" class="generate-status"></div>
+          </details>
+
+          <div class="row">
+            <label>Deposit Amount<input type="number" id="depositAmount" placeholder="0"></label>
+            <label>Deposit Date<input type="text" id="depositDate" placeholder="MM/DD/YYYY"></label>
+          </div>
+          <label>Balance Due<input type="number" id="balanceDue" placeholder="0"></label>
+          <label>Payment Notes<textarea id="paymentNotes" rows="2" placeholder="Check #, partial payment schedule, etc."></textarea></label>
+        </section>
       </div>
     </details>
 
@@ -248,6 +271,13 @@
       <button type="button" class="btn-add-small custom-note-save">Save</button>
       <button type="button" class="btn-remove custom-note-remove" title="Delete">×</button>
     </div>
+  </div>
+</template>
+
+<template id="customStatusItemTemplate">
+  <div class="custom-note-item custom-status-item">
+    <span class="custom-status-item-label"></span>
+    <button type="button" class="btn-remove custom-status-remove" title="Delete">×</button>
   </div>
 </template>
 

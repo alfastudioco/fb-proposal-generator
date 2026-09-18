@@ -90,6 +90,22 @@ function validateProposalData(body) {
     errors.push('id must be a non-empty string if provided');
   }
 
+  if (body.status !== undefined && typeof body.status !== 'string') {
+    errors.push('status must be a string if provided');
+  }
+  if (body.depositAmount !== undefined && typeof body.depositAmount !== 'number') {
+    errors.push('depositAmount must be a number if provided');
+  }
+  if (body.depositDate !== undefined && typeof body.depositDate !== 'string') {
+    errors.push('depositDate must be a string if provided');
+  }
+  if (body.balanceDue !== undefined && typeof body.balanceDue !== 'number') {
+    errors.push('balanceDue must be a number if provided');
+  }
+  if (body.paymentNotes !== undefined && typeof body.paymentNotes !== 'string') {
+    errors.push('paymentNotes must be a string if provided');
+  }
+
   return { valid: errors.length === 0, errors };
 }
 

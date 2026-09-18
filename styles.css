@@ -463,6 +463,22 @@ button {
   resize: vertical;
 }
 
+.field-hint {
+  margin: -4px 0 10px;
+  font-size: 11px;
+  color: var(--gray);
+}
+
+.custom-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.custom-status-item-label {
+  font-size: 12px;
+}
+
 .download-links {
   margin-top: 10px;
   display: flex;
@@ -579,6 +595,48 @@ button {
 .btn-file:hover { background: var(--navy-lite); }
 .btn-file:disabled { opacity: 0.6; }
 a.btn-file { display: inline-block; text-decoration: none; }
+
+.history-status-select {
+  padding: 5px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.history-deposit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.deposit-summary { font-size: 12px; }
+
+.deposit-edit-row td {
+  background: var(--notes-bg);
+  padding: 10px 14px;
+}
+.deposit-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.deposit-edit-form input {
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.deposit-edit-form input[type="number"] { width: 110px; }
+.deposit-edit-form input[placeholder="Deposit date"] { width: 110px; }
+.deposit-edit-form input[placeholder="Payment notes"] { flex: 1; min-width: 140px; }
+.deposit-edit-status {
+  font-size: 11px;
+  color: var(--gray);
+}
 
 .chat-panel {
   margin-top: 16px;

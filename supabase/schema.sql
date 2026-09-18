@@ -66,6 +66,30 @@ create table if not exists fbpg_note_snippets (
   created_at timestamptz not null default now()
 );
 
+-- Phase 5: sales-pipeline status tracking and deposit/payment tracking.
+-- status is free text rather than a Postgres enum so custom values can be
+-- added via fbpg_statuses without a schema migration. Every proposal row
+-- today only exists once generated (there's no draft-save flow), so new
+-- rows default to 'Sent'.
+alter table fbpg_proposals add column if not exists status text not null default 'Sent';
+alter table fbpg_proposals add column if not exists deposit_amount numeric;
+alter table fbpg_proposals add column if not exists deposit_date text;
+alter table fbpg_proposals add column if not exists balance_due numeric;
+alter table fbpg_proposals add column if not exists payment_notes text;
+
+-- User-managed list of status values offered in the Status dropdown,
+-- seeded with the default sales-pipeline stages -- same "manage your own
+-- list" pattern as fbpg_note_snippets above. Add/remove custom ones via
+-- the "Manage statuses" panel; no code change needed.
+create table if not exists fbpg_statuses (
+  id uuid primary key default uuid_generate_v4(),
+  label text not null unique,
+  created_at timestamptz not null default now()
+);
+insert into fbpg_statuses (label) values
+  ('Draft'), ('Sent'), ('Pending'), ('Sold'), ('Lost')
+on conflict (label) do nothing;
+
 -- RLS: deny-by-default. All reads/writes happen server-side in
 -- api/generate.js using the service role key, which bypasses RLS
 -- automatically — no policies are added for anon/authenticated roles,
@@ -73,3 +97,4 @@ create table if not exists fbpg_note_snippets (
 alter table fbpg_clients enable row level security;
 alter table fbpg_proposals enable row level security;
 alter table fbpg_note_snippets enable row level security;
+alter table fbpg_statuses enable row level security;
