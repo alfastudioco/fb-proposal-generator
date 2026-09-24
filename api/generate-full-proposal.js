@@ -50,54 +50,122 @@ const SCOPE_ITEM_SCHEMA = {
 // leftScope/rightScope split, so this keeps both arrays separate end to end
 // -- re-flattening and re-splitting on every edit would silently reshuffle
 // column placement for rooms the instruction never mentioned.
+const SECTION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    title: { type: 'string' },
+    subtitle: { type: 'string' },
+    price: { type: 'number' },
+    priceLabel: { type: 'string' },
+    leftScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
+    rightScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
+  },
+  required: ['title', 'price', 'leftScope', 'rightScope'],
+};
+
+// The model returns only what changed (a patch), not the whole proposal --
+// echoing every room and the full Terms & Conditions back on each edit blew
+// through max_tokens / the 60s function limit on real-sized proposals.
+// applyEditPatch() below merges the patch into the proposal the client sent,
+// so the endpoint's response shape is unchanged.
 const EDIT_TOOL = {
   name: 'apply_proposal_edit',
-  description: 'Records the full proposal again with only the requested change applied; everything else unchanged.',
+  description:
+    'Records ONLY the changes needed to carry out the instruction. Anything not mentioned here is kept exactly as-is.',
   input_schema: {
     type: 'object',
     additionalProperties: false,
     properties: {
-      sections: {
+      sectionChanges: {
         type: 'array',
-        description: 'Every room/section, in order, after the edit. Include ALL sections, not just changed ones.',
+        description:
+          'One entry per room/section that is updated, added, or removed. Omit rooms the instruction does not touch. ' +
+          '"index" is the 0-based position of the room in the CURRENT proposal (required for update/remove). ' +
+          'For update/add, "section" is the complete room after the change (all its scope items, not just the new ones).',
         items: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            title: { type: 'string' },
-            subtitle: { type: 'string' },
-            price: { type: 'number' },
-            priceLabel: { type: 'string' },
-            leftScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
-            rightScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
+            op: { type: 'string', enum: ['update', 'add', 'remove'] },
+            index: { type: 'integer' },
+            section: SECTION_SCHEMA,
           },
-          required: ['title', 'price', 'leftScope', 'rightScope'],
+          required: ['op'],
         },
       },
-      notes: { type: 'string' },
-      termsAndConditions: { type: 'string' },
-      totalLabel: { type: 'string' },
-      investmentNote: { type: 'string' },
-      expirationDate: { type: 'string' },
-      clientSupplied: { type: 'array', items: { type: 'string' } },
-      paymentTerms: {
-        type: ['object', 'null'],
+      fieldChanges: {
+        type: 'object',
+        additionalProperties: false,
+        description: 'Only the proposal-level fields that change, with their complete new value. Omit unchanged fields.',
         properties: {
-          lines: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: { label: { type: 'string' }, amount: { type: 'number' } },
-              required: ['label', 'amount'],
+          notes: { type: 'string' },
+          termsAndConditions: { type: 'string' },
+          totalLabel: { type: 'string' },
+          investmentNote: { type: 'string' },
+          expirationDate: { type: 'string' },
+          clientSupplied: { type: 'array', items: { type: 'string' } },
+          paymentTerms: {
+            type: ['object', 'null'],
+            description: 'The complete new payment terms, or null to remove them.',
+            properties: {
+              lines: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: { label: { type: 'string' }, amount: { type: 'number' } },
+                  required: ['label', 'amount'],
+                },
+              },
+              note: { type: 'string' },
             },
           },
-          note: { type: 'string' },
         },
       },
     },
-    required: ['sections', 'notes', 'termsAndConditions', 'totalLabel', 'investmentNote', 'expirationDate', 'clientSupplied', 'paymentTerms'],
+    required: ['sectionChanges', 'fieldChanges'],
   },
 };
+
+function editableSection(s) {
+  return {
+    title: s.title || '',
+    subtitle: s.subtitle || '',
+    price: Number(s.price) || 0,
+    priceLabel: s.priceLabel || '',
+    leftScope: s.leftScope || [],
+    rightScope: s.rightScope || [],
+  };
+}
+
+function applyEditPatch(proposal, patch) {
+  const sections = (proposal.sections || []).map(editableSection);
+  const changes = patch.sectionChanges || [];
+  const isValidIndex = (c) => Number.isInteger(c.index) && c.index >= 0 && c.index < sections.length;
+
+  changes.filter((c) => c.op === 'update' && c.section && isValidIndex(c))
+    .forEach((c) => { sections[c.index] = editableSection(c.section); });
+  // Removals by descending index so earlier removals don't shift later ones.
+  changes.filter((c) => c.op === 'remove' && isValidIndex(c))
+    .map((c) => c.index)
+    .sort((a, b) => b - a)
+    .forEach((i) => sections.splice(i, 1));
+  changes.filter((c) => c.op === 'add' && c.section)
+    .forEach((c) => sections.push(editableSection(c.section)));
+
+  const fields = patch.fieldChanges || {};
+  const pick = (key, fallback) => (Object.prototype.hasOwnProperty.call(fields, key) ? fields[key] : fallback);
+  return {
+    sections,
+    notes: pick('notes', proposal.notes || ''),
+    termsAndConditions: pick('termsAndConditions', proposal.termsAndConditions || ''),
+    totalLabel: pick('totalLabel', proposal.totalLabel || ''),
+    investmentNote: pick('investmentNote', proposal.investmentNote || ''),
+    expirationDate: pick('expirationDate', proposal.expirationDate || ''),
+    clientSupplied: pick('clientSupplied', proposal.clientSupplied || []),
+    paymentTerms: pick('paymentTerms', proposal.paymentTerms || null),
+  };
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -166,22 +234,24 @@ async function handleEdit(req, res) {
     return res.status(400).json({ error: 'proposal is required' });
   }
 
+  // Only the fields the edit can touch -- client info, status, and deposit
+  // tracking would just be noise in the prompt.
+  const editable = applyEditPatch(proposal, {});
+  const indexedSections = editable.sections.map((s, index) => ({ index, ...s }));
+
   const prompt = `You are editing an existing residential remodeling proposal for FB Construction. The contractor has \
-described a change they want made. Apply ONLY that change. Every other field -- including scope bullets, prices, and \
-which column (left vs right) each scope item is in for rooms not mentioned by the instruction -- must come back \
-byte-for-byte identical to the input.
+described a change they want made. Record ONLY that change -- do not return rooms or fields the instruction doesn't \
+affect. When you update a room, keep its untouched scope items (and their left/right column placement) exactly as \
+they are in the input.
 
 EXAMPLE SCOPE LIBRARY (real language from past proposals, for voice/style reference, in case the instruction asks for \
 new scope language):
 ${buildSnippetContext()}
 
-CURRENT PROPOSAL (JSON):
-${JSON.stringify(proposal, null, 2)}
+CURRENT PROPOSAL (JSON; each room's "index" is what sectionChanges refers to):
+${JSON.stringify({ ...editable, sections: indexedSections }, null, 2)}
 
-Contractor's requested change: "${instruction}"
-
-Return the full proposal again -- all sections, notes, terms and conditions, investment summary fields, client-supplied \
-items, and payment terms (if present) -- with only the requested change applied.`;
+Contractor's requested change: "${instruction}"`;
 
   try {
     const anthropic = getAnthropicClient();
@@ -200,7 +270,7 @@ items, and payment terms (if present) -- with only the requested change applied.
     const toolUse = response.content.find((block) => block.type === 'tool_use');
     if (!toolUse) throw new Error('Model did not return a structured edit');
 
-    return res.status(200).json(toolUse.input);
+    return res.status(200).json(applyEditPatch(proposal, toolUse.input));
   } catch (err) {
     console.error('Proposal edit failed:', err);
     return res.status(502).json({ error: 'Could not apply edit', details: err.message });

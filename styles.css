@@ -398,7 +398,22 @@ button {
   background: var(--navy);
   color: #fff;
 }
-.btn-generate:disabled, .btn-preview:disabled {
+.btn-save-as-new {
+  width: 100%;
+  margin-top: 8px;
+  background: none;
+  border: 1px solid var(--navy);
+  border-radius: 6px;
+  padding: 9px;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--navy);
+  cursor: pointer;
+}
+.btn-save-as-new.is-hidden {
+  display: none;
+}
+.btn-generate:disabled, .btn-preview:disabled, .btn-save-as-new:disabled {
   opacity: 0.6;
   cursor: default;
 }

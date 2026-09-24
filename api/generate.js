@@ -129,9 +129,9 @@ module.exports = async function handler(req, res) {
 
     // A failed audit-trail write must never block file delivery -- the
     // user still gets both files even if this insert/update fails.
-    const { error: dbError } = data.id
-      ? await supabase.from('fbpg_proposals').update(row).eq('id', data.id)
-      : await supabase.from('fbpg_proposals').insert(row);
+    const { data: savedRow, error: dbError } = data.id
+      ? await supabase.from('fbpg_proposals').update(row).eq('id', data.id).select('id').single()
+      : await supabase.from('fbpg_proposals').insert(row).select('id').single();
     if (dbError) console.error('proposals insert/update failed (non-fatal):', dbError);
 
     // Only clean up the old files once the new ones are uploaded and the
@@ -144,7 +144,11 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ docxUrl: docxSigned.data.signedUrl, pdfUrl: pdfSigned.data.signedUrl });
+    return res.status(200).json({
+      docxUrl: docxSigned.data.signedUrl,
+      pdfUrl: pdfSigned.data.signedUrl,
+      id: savedRow ? savedRow.id : undefined,
+    });
   } catch (err) {
     console.error('Storage/DB step failed:', err);
     return res.status(502).json({ error: 'Files were generated but could not be stored', details: err.message });

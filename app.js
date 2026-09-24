@@ -200,6 +200,7 @@
     const indicator = el('editingIndicator');
     indicator.classList.add('is-hidden');
     el('generateBtn').textContent = 'Generate Word + PDF';
+    el('saveAsNewBtn').classList.add('is-hidden');
     downloadLinks.innerHTML = '';
     el('clientMatchPanel').classList.add('is-hidden');
 
@@ -713,7 +714,7 @@
         body: JSON.stringify({ proposal: snapshot, instruction }),
       });
       const newData = await res.json();
-      if (!res.ok) throw new Error(newData.error || 'Edit failed');
+      if (!res.ok) throw new Error(newData.details || newData.error || 'Edit failed');
 
       const changes = diffProposalForChat(snapshot, newData);
       if (!changes.length) {
@@ -1337,10 +1338,7 @@
         el('paymentTermsNote').value = p.payment_terms.note || '';
       }
 
-      const indicator = el('editingIndicator');
-      indicator.textContent = `Editing Proposal #${p.proposal_num}`;
-      indicator.classList.remove('is-hidden');
-      el('generateBtn').textContent = 'Save Changes';
+      showEditingState(id, p.proposal_num);
 
       renderRooms();
       renderClientSupplied();
@@ -1516,10 +1514,42 @@
 
   // ---- Generate -----------------------------------------------------------------
 
-  async function generateProposal() {
+  function showEditingState(id, proposalNum) {
+    state.editingId = id;
+    state.savedProposalNum = proposalNum;
+    const indicator = el('editingIndicator');
+    indicator.textContent = `Editing Proposal #${proposalNum}`;
+    indicator.classList.remove('is-hidden');
+    el('generateBtn').textContent = 'Save Changes';
+    el('saveAsNewBtn').classList.remove('is-hidden');
+  }
+
+  // "1901" -> "1901-B", "1901-B" -> "1901-C", so an alternate version is
+  // distinguishable on the history page and on the document itself.
+  function nextVersionNum(num) {
+    const m = num.match(/^(.*)-([A-Ya-y])$/);
+    if (m) return `${m[1]}-${String.fromCharCode(m[2].toUpperCase().charCodeAt(0) + 1)}`;
+    return `${num}-B`;
+  }
+
+  async function generateProposal(asNewVersion = false) {
+    if (asNewVersion && el('proposalNum').value.trim() === state.savedProposalNum) {
+      el('proposalNum').value = nextVersionNum(state.savedProposalNum);
+    }
     const data = collectProposalData();
+    if (asNewVersion) {
+      // A new row, not an update -- and an alternate version hasn't been
+      // paid on, so the original's deposit/balance tracking doesn't carry over.
+      delete data.id;
+      delete data.depositAmount;
+      delete data.depositDate;
+      delete data.balanceDue;
+      delete data.paymentNotes;
+    }
     const generateBtn = el('generateBtn');
+    const saveAsNewBtn = el('saveAsNewBtn');
     generateBtn.disabled = true;
+    saveAsNewBtn.disabled = true;
     generateStatus.textContent = 'Generating Word and PDF — this can take a few seconds…';
     generateStatus.className = 'generate-status';
     downloadLinks.innerHTML = '';
@@ -1534,9 +1564,27 @@
       if (!res.ok) {
         generateStatus.textContent = body.details ? (Array.isArray(body.details) ? body.details.join(' ') : body.details) : body.error;
         generateStatus.className = 'generate-status error';
+        if (asNewVersion) el('proposalNum').value = state.savedProposalNum;
         return;
       }
       generateStatus.textContent = 'Done.';
+      if (!asNewVersion && state.editingId) showEditingState(state.editingId, data.proposalNum);
+      if (asNewVersion && !body.id) {
+        // Files were made but the history row wasn't -- don't leave the form
+        // pointed at the original with the new version's number in it.
+        generateStatus.textContent = 'Files generated, but the new version could not be saved to history.';
+        generateStatus.className = 'generate-status error';
+        el('proposalNum').value = state.savedProposalNum;
+      } else if (asNewVersion) {
+        // From here on, Save Changes updates the new version, not the original.
+        generateStatus.textContent = `Saved as new version #${data.proposalNum}.`;
+        showEditingState(body.id, data.proposalNum);
+        history.replaceState(null, '', `?edit=${encodeURIComponent(body.id)}`);
+        el('depositAmount').value = '';
+        el('depositDate').value = '';
+        el('balanceDue').value = '';
+        el('paymentNotes').value = '';
+      }
       downloadLinks.innerHTML = '';
       if (body.docxUrl) {
         const a = document.createElement('a');
@@ -1553,12 +1601,15 @@
     } catch (err) {
       generateStatus.textContent = `Network error: ${err.message}`;
       generateStatus.className = 'generate-status error';
+      if (asNewVersion) el('proposalNum').value = state.savedProposalNum;
     } finally {
       generateBtn.disabled = false;
+      saveAsNewBtn.disabled = false;
     }
   }
 
-  el('generateBtn').addEventListener('click', generateProposal);
+  el('generateBtn').addEventListener('click', () => generateProposal(false));
+  el('saveAsNewBtn').addEventListener('click', () => generateProposal(true));
 
   // ---- Wire up totals recompute + live preview sync on any input -------------
 
