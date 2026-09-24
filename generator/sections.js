@@ -157,8 +157,11 @@ function titleCellChildren(title, subtitle) {
 
 // Multi-section proposals (spec §4.3): numbered orange badge, navy title
 // (+ optional subtitle), light-navy price cell with orange label.
-function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
+function buildStandardBanner({ num, title, subtitle, price, priceLabel, hidePrice }) {
   const [wBadge, wTitle, wPrice] = COL_WIDTHS.banner;
+  // hidePrice ("show total only"): drop the price cell and let the title
+  // span its width, so the row still fills the page.
+  const titleWidth = hidePrice ? wTitle + wPrice : wTitle;
 
   // Light outline rather than a solid orange fill -- one strong dark block
   // per section (the title cell) reads as a more deliberate, confident
@@ -180,13 +183,21 @@ function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
   });
 
   const titleCell = new TableCell({
-    width: { size: wTitle, type: WidthType.DXA },
+    width: { size: titleWidth, type: WidthType.DXA },
     shading: shade(NAVY_DARK),
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 200, bottom: 200, left: 260, right: 260 },
     borders: cellBorders(),
     children: titleCellChildren(title, subtitle),
   });
+
+  if (hidePrice) {
+    return new Table({
+      width: { size: wBadge + titleWidth, type: WidthType.DXA },
+      columnWidths: [wBadge, titleWidth],
+      rows: [new TableRow({ cantSplit: true, children: [badgeCell, titleCell] })],
+    });
+  }
 
   const priceCell = new TableCell({
     width: { size: wPrice, type: WidthType.DXA },
@@ -217,17 +228,26 @@ function buildStandardBanner({ num, title, subtitle, price, priceLabel }) {
 // Single-section proposals (confirmed against real reference proposals --
 // Mike Nash, Michelle Finch, Meghan Hamann): no numbered badge, orange
 // price cell instead of light-navy.
-function buildHeroBanner({ title, subtitle, price, priceLabel }) {
+function buildHeroBanner({ title, subtitle, price, priceLabel, hidePrice }) {
   const [wTitle, wPrice] = COL_WIDTHS.heroBanner;
+  const titleWidth = hidePrice ? wTitle + wPrice : wTitle;
 
   const titleCell = new TableCell({
-    width: { size: wTitle, type: WidthType.DXA },
+    width: { size: titleWidth, type: WidthType.DXA },
     shading: shade(NAVY_DARK),
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 200, bottom: 200, left: 260, right: 260 },
     borders: cellBorders(),
     children: titleCellChildren(title, subtitle),
   });
+
+  if (hidePrice) {
+    return new Table({
+      width: { size: titleWidth, type: WidthType.DXA },
+      columnWidths: [titleWidth],
+      rows: [new TableRow({ cantSplit: true, children: [titleCell] })],
+    });
+  }
 
   const priceCell = new TableCell({
     width: { size: wPrice, type: WidthType.DXA },
@@ -255,10 +275,10 @@ function buildHeroBanner({ title, subtitle, price, priceLabel }) {
   });
 }
 
-function buildSectionBanner({ num, title, subtitle, price, priceLabel, hero }) {
+function buildSectionBanner({ num, title, subtitle, price, priceLabel, hidePrice, hero }) {
   return hero
-    ? buildHeroBanner({ title, subtitle, price, priceLabel })
-    : buildStandardBanner({ num, title, subtitle, price, priceLabel });
+    ? buildHeroBanner({ title, subtitle, price, priceLabel, hidePrice })
+    : buildStandardBanner({ num, title, subtitle, price, priceLabel, hidePrice });
 }
 
 // ---- 4.4 Two-column scope -------------------------------------------------

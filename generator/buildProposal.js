@@ -88,6 +88,7 @@ async function buildProposal(proposalData) {
         subtitle: section.subtitle,
         price: section.price,
         priceLabel: section.priceLabel,
+        hidePrice: !!section.hidePrice,
         hero: isSingleSection,
       }),
     );

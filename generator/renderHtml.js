@@ -117,15 +117,24 @@ function renderSection(section, isHero, editable, sectionIndex) {
     ? `<span${editableAttrs(priceField)}>${esc(formatCurrency(section.price))}</span>`
     : esc(formatCurrency(section.price));
 
+  // hidePrice ("show total only") drops the price cell entirely; the title
+  // cell takes the full row. Same treatment as generator/sections.js.
+  const heroPriceHtml = section.hidePrice ? '' : `
+        <td class="banner-price hero">
+          <div class="investment-label hero">${priceLabelHtml}</div>
+          <div class="investment-amount hero">${priceAmountHtml}</div>
+        </td>`;
+  const standardPriceHtml = section.hidePrice ? '' : `
+        <td class="banner-price">
+          <div class="investment-label">${priceLabelHtml}</div>
+          <div class="investment-amount">${priceAmountHtml}</div>
+        </td>`;
+
   const bannerHtml = isHero
     ? `
     <table class="banner banner-hero">
       <tr>
-        <td class="banner-title hero">${titleHtml}${subtitleHtml}</td>
-        <td class="banner-price hero">
-          <div class="investment-label hero">${priceLabelHtml}</div>
-          <div class="investment-amount hero">${priceAmountHtml}</div>
-        </td>
+        <td class="banner-title hero">${titleHtml}${subtitleHtml}</td>${heroPriceHtml}
       </tr>
     </table>
   `
@@ -133,11 +142,7 @@ function renderSection(section, isHero, editable, sectionIndex) {
     <table class="banner">
       <tr>
         <td class="badge">${esc(String(section.num).padStart(2, '0'))}</td>
-        <td class="banner-title">${titleHtml}${subtitleHtml}</td>
-        <td class="banner-price">
-          <div class="investment-label">${priceLabelHtml}</div>
-          <div class="investment-amount">${priceAmountHtml}</div>
-        </td>
+        <td class="banner-title">${titleHtml}${subtitleHtml}</td>${standardPriceHtml}
       </tr>
     </table>
   `;

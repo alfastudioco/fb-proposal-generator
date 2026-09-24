@@ -58,6 +58,10 @@ const SECTION_SCHEMA = {
     subtitle: { type: 'string' },
     price: { type: 'number' },
     priceLabel: { type: 'string' },
+    hidePrice: {
+      type: 'boolean',
+      description: 'True to hide this room\'s price on the proposal (it still counts toward the total).',
+    },
     leftScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
     rightScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
   },
@@ -77,6 +81,19 @@ const EDIT_TOOL = {
     type: 'object',
     additionalProperties: false,
     properties: {
+      message: {
+        type: 'string',
+        description:
+          'One or two plain sentences to the contractor: what you changed, or -- if the proposal format can\'t do ' +
+          'what they asked -- say so plainly and suggest the closest thing it can do. Never fake a request by ' +
+          'changing unrelated content.',
+      },
+      hideAllSectionPrices: {
+        type: 'boolean',
+        description:
+          'Set true to hide every room\'s individual price so only the total project investment shows (e.g. "only ' +
+          'show the total"); false to show them all again. Omit to leave as-is. Prefer this over updating each room.',
+      },
       sectionChanges: {
         type: 'array',
         description:
@@ -123,7 +140,7 @@ const EDIT_TOOL = {
         },
       },
     },
-    required: ['sectionChanges', 'fieldChanges'],
+    required: ['message', 'sectionChanges', 'fieldChanges'],
   },
 };
 
@@ -133,6 +150,7 @@ function editableSection(s) {
     subtitle: s.subtitle || '',
     price: Number(s.price) || 0,
     priceLabel: s.priceLabel || '',
+    ...(s.hidePrice ? { hidePrice: true } : {}),
     leftScope: s.leftScope || [],
     rightScope: s.rightScope || [],
   };
@@ -152,10 +170,17 @@ function applyEditPatch(proposal, patch) {
     .forEach((i) => sections.splice(i, 1));
   changes.filter((c) => c.op === 'add' && c.section)
     .forEach((c) => sections.push(editableSection(c.section)));
+  if (typeof patch.hideAllSectionPrices === 'boolean') {
+    sections.forEach((s) => {
+      if (patch.hideAllSectionPrices) s.hidePrice = true;
+      else delete s.hidePrice;
+    });
+  }
 
   const fields = patch.fieldChanges || {};
   const pick = (key, fallback) => (Object.prototype.hasOwnProperty.call(fields, key) ? fields[key] : fallback);
   return {
+    message: patch.message || '',
     sections,
     notes: pick('notes', proposal.notes || ''),
     termsAndConditions: pick('termsAndConditions', proposal.termsAndConditions || ''),
@@ -236,7 +261,7 @@ async function handleEdit(req, res) {
 
   // Only the fields the edit can touch -- client info, status, and deposit
   // tracking would just be noise in the prompt.
-  const editable = applyEditPatch(proposal, {});
+  const { message: _unused, ...editable } = applyEditPatch(proposal, {});
   const indexedSections = editable.sections.map((s, index) => ({ index, ...s }));
 
   const prompt = `You are editing an existing residential remodeling proposal for FB Construction. The contractor has \

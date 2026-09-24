@@ -544,6 +544,7 @@
         subtitle: (s.subtitle || '').trim(),
         price: Number(s.price) || 0,
         priceLabel: s.priceLabel || '',
+        hidePrice: !!s.hidePrice,
         leftScope: (s.leftScope || []).map((it) => ({ type: it.type, text: it.text })),
         rightScope: (s.rightScope || []).map((it) => ({ type: it.type, text: it.text })),
       })),
@@ -598,6 +599,9 @@
       if (oldPriceLabel !== newPriceLabel) {
         changes.push(`${newSection.title} priceLabel: "${oldPriceLabel}" -> "${newPriceLabel}"`);
       }
+      if (!!oldSection.hidePrice !== !!newSection.hidePrice) {
+        changes.push(`${newSection.title}: price ${newSection.hidePrice ? 'hidden' : 'shown'} on proposal`);
+      }
       const oldBullets = [...(oldSection.leftScope || []), ...(oldSection.rightScope || [])].map((it) => it.text);
       const newBullets = [...(newSection.leftScope || []), ...(newSection.rightScope || [])].map((it) => it.text);
       newBullets.filter((t) => !oldBullets.includes(t)).forEach((t) => changes.push(`+ ${newSection.title}: "${t}"`));
@@ -638,6 +642,7 @@
       subtitle: s.subtitle || '',
       price: Number(s.price) || 0,
       priceLabel: s.priceLabel || '',
+      hidePrice: !!s.hidePrice,
       description: '',
       scopeStatus: null,
       leftScope: (s.leftScope || []).map((it) => ({ ...it })),
@@ -718,11 +723,11 @@
 
       const changes = diffProposalForChat(snapshot, newData);
       if (!changes.length) {
-        setChatEntryNote(entry, 'No changes detected — try rephrasing.');
+        setChatEntryNote(entry, newData.message || 'No changes detected — try rephrasing.');
         return;
       }
 
-      setChatEntryNote(entry, '');
+      setChatEntryNote(entry, newData.message || '');
       const changesList = entry.querySelector('.chat-entry-changes');
       changes.forEach((c) => {
         const li = document.createElement('li');
@@ -772,6 +777,8 @@
     const id = nextSectionId();
     state.sections.push({
       id, title: '', subtitle: '', price: 0, priceLabel: '', description: '', scopeStatus: null,
+      // A room added while "Show total only" is on should stay hidden too.
+      hidePrice: state.sections.length > 0 && state.sections.every((s) => s.hidePrice),
       leftScope: [], rightScope: [],
     });
     renderRooms();
@@ -870,6 +877,13 @@
       priceLabelInput.value = section.priceLabel || '';
       priceLabelInput.addEventListener('input', () => { section.priceLabel = priceLabelInput.value; });
 
+      const hidePriceInput = card.querySelector('.room-hide-price');
+      hidePriceInput.checked = !!section.hidePrice;
+      hidePriceInput.addEventListener('change', () => {
+        section.hidePrice = hidePriceInput.checked;
+        syncShowTotalOnlyToggle();
+      });
+
       card.querySelector('.room-remove').addEventListener('click', () => removeRoom(section.id));
 
       const snippetSelect = card.querySelector('.room-snippet-select');
@@ -924,7 +938,20 @@
 
       roomsList.appendChild(cardEl);
     }
+    syncShowTotalOnlyToggle();
   }
+
+  // "Show total only" isn't stored anywhere itself -- it's just a shortcut
+  // that reads/sets every room's hidePrice, so a proposal can also hide
+  // prices on only some rooms.
+  function syncShowTotalOnlyToggle() {
+    el('showTotalOnlyToggle').checked = state.sections.length > 0 && state.sections.every((s) => s.hidePrice);
+  }
+
+  el('showTotalOnlyToggle').addEventListener('change', (e) => {
+    state.sections.forEach((s) => { s.hidePrice = e.target.checked; });
+    renderRooms();
+  });
 
   el('addRoomBtn').addEventListener('click', addRoom);
 
@@ -1260,6 +1287,7 @@
         subtitle: s.subtitle ? s.subtitle.trim() : undefined,
         price: Number(s.price) || 0,
         priceLabel: s.priceLabel ? s.priceLabel.trim() : undefined,
+        hidePrice: s.hidePrice ? true : undefined,
         leftScope: forPreview ? s.leftScope.map((it) => ({ ...it })) : s.leftScope.filter((it) => it.text.trim()),
         rightScope: forPreview ? s.rightScope.map((it) => ({ ...it })) : s.rightScope.filter((it) => it.text.trim()),
       })),
@@ -1323,6 +1351,7 @@
         subtitle: s.subtitle || '',
         price: s.price || 0,
         priceLabel: s.priceLabel || '',
+        hidePrice: !!s.hidePrice,
         description: '',
         scopeStatus: null,
         leftScope: (s.leftScope || []).map((it) => ({ ...it })),

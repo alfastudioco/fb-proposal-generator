@@ -65,6 +65,9 @@ function validateProposalData(body) {
       if (section.priceLabel !== undefined && typeof section.priceLabel !== 'string') {
         errors.push(`sections[${i}].priceLabel must be a string if provided`);
       }
+      if (section.hidePrice !== undefined && typeof section.hidePrice !== 'boolean') {
+        errors.push(`sections[${i}].hidePrice must be a boolean if provided`);
+      }
       validateScopeItems(section.leftScope || [], `sections[${i}].leftScope`, errors);
       validateScopeItems(section.rightScope || [], `sections[${i}].rightScope`, errors);
     });

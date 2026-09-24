@@ -77,6 +77,10 @@
             <button type="button" class="btn-add" id="draftFullProposalBtn">Draft Full Proposal from Description</button>
             <div id="fullProposalStatus" class="room-scope-status"></div>
           </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="showTotalOnlyToggle">
+            Show total only (hide every room's price)
+          </label>
           <div id="roomsList"></div>
         </section>
 
@@ -205,6 +209,7 @@
       <label class="room-price-label">Price<input type="number" class="room-price" placeholder="0"></label>
       <label class="room-price-label">Price Label<input type="text" class="room-price-label-input" placeholder="INVESTMENT"></label>
     </div>
+    <label class="checkbox-label"><input type="checkbox" class="room-hide-price"> Hide this price on the proposal (still counts toward the total)</label>
     <select class="snippet-select room-snippet-select">
       <option value="">+ Insert common scope…</option>
     </select>
