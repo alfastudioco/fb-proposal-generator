@@ -7,6 +7,9 @@
     paymentTermLines: [], // [{label, amount}]
     clientId: null, // set when an extracted client is matched/linked to an existing fbpg_clients row
     editingId: null, // set when loaded via ?edit=<id> -- Generate then updates this row instead of inserting a new one
+    // "Show total price only" is proposal-wide. It's saved as hidePrice on
+    // every section (inside the sections jsonb, so no migration) -- all or none.
+    showTotalOnly: false,
   };
 
   let sectionIdCounter = 0;
@@ -544,7 +547,6 @@
         subtitle: (s.subtitle || '').trim(),
         price: Number(s.price) || 0,
         priceLabel: s.priceLabel || '',
-        hidePrice: !!s.hidePrice,
         leftScope: (s.leftScope || []).map((it) => ({ type: it.type, text: it.text })),
         rightScope: (s.rightScope || []).map((it) => ({ type: it.type, text: it.text })),
       })),
@@ -599,14 +601,17 @@
       if (oldPriceLabel !== newPriceLabel) {
         changes.push(`${newSection.title} priceLabel: "${oldPriceLabel}" -> "${newPriceLabel}"`);
       }
-      if (!!oldSection.hidePrice !== !!newSection.hidePrice) {
-        changes.push(`${newSection.title}: price ${newSection.hidePrice ? 'hidden' : 'shown'} on proposal`);
-      }
       const oldBullets = [...(oldSection.leftScope || []), ...(oldSection.rightScope || [])].map((it) => it.text);
       const newBullets = [...(newSection.leftScope || []), ...(newSection.rightScope || [])].map((it) => it.text);
       newBullets.filter((t) => !oldBullets.includes(t)).forEach((t) => changes.push(`+ ${newSection.title}: "${t}"`));
       oldBullets.filter((t) => !newBullets.includes(t)).forEach((t) => changes.push(`- ${newSection.title}: "${t}"`));
     });
+
+    const oldTotalOnly = sectionsShowTotalOnly(oldData.sections);
+    const newTotalOnly = sectionsShowTotalOnly(newData.sections);
+    if (oldTotalOnly !== newTotalOnly) {
+      changes.push(newTotalOnly ? 'Show total price only: on (room prices hidden)' : 'Show total price only: off (room prices shown)');
+    }
 
     const oldPT = oldData.paymentTerms;
     const newPT = newData.paymentTerms;
@@ -622,7 +627,7 @@
       }
     }
 
-    if (!changes.length && JSON.stringify(chatEditableSubset(oldData)) !== JSON.stringify(chatEditableSubset(newData))) {
+    if (!changes.length && oldTotalOnly === newTotalOnly && JSON.stringify(chatEditableSubset(oldData)) !== JSON.stringify(chatEditableSubset(newData))) {
       changes.push('Other changes: ordering or formatting');
     }
 
@@ -642,12 +647,12 @@
       subtitle: s.subtitle || '',
       price: Number(s.price) || 0,
       priceLabel: s.priceLabel || '',
-      hidePrice: !!s.hidePrice,
       description: '',
       scopeStatus: null,
       leftScope: (s.leftScope || []).map((it) => ({ ...it })),
       rightScope: (s.rightScope || []).map((it) => ({ ...it })),
     }));
+    setShowTotalOnly(sectionsShowTotalOnly(newData.sections));
     state.clientSupplied = Array.isArray(newData.clientSupplied) ? [...newData.clientSupplied] : [];
 
     if (newData.paymentTerms && Array.isArray(newData.paymentTerms.lines)) {
@@ -777,10 +782,9 @@
     const id = nextSectionId();
     state.sections.push({
       id, title: '', subtitle: '', price: 0, priceLabel: '', description: '', scopeStatus: null,
-      // A room added while "Show total only" is on should stay hidden too.
-      hidePrice: state.sections.length > 0 && state.sections.every((s) => s.hidePrice),
       leftScope: [], rightScope: [],
     });
+    openRoomIds.add(id);
     renderRooms();
   }
 
@@ -852,15 +856,61 @@
     renderRooms();
   }
 
+  // Which rooms (and which rooms' AI panels) are expanded. UI-only, keyed by
+  // section id, so re-rendering after an edit doesn't collapse what's open.
+  const openRoomIds = new Set();
+  const openRoomAiIds = new Set();
+
+  function countScopeBullets(section) {
+    return [...section.leftScope, ...section.rightScope].filter((it) => it.type === 'bullet' && it.text.trim()).length;
+  }
+
+  // Scope lines are textareas so long bullets wrap instead of being cut off;
+  // grow each one to fit its text. Only measurable while the room is open.
+  function autosizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    if (textarea.scrollHeight) textarea.style.height = `${textarea.scrollHeight}px`;
+  }
+
+  function focusScopeItem(sectionId, side, index) {
+    const cardEl = roomsList.querySelector(`.room-card[data-section-id="${sectionId}"]`);
+    const textareas = cardEl ? cardEl.querySelectorAll(`.scope-items[data-side="${side}"] .scope-item-text`) : [];
+    if (textareas[index]) textareas[index].focus();
+  }
+
   function renderRooms() {
     roomsList.innerHTML = '';
-    for (const section of state.sections) {
+    state.sections.forEach((section, sectionIndex) => {
       const card = roomCardTemplate.content.cloneNode(true);
       const cardEl = card.querySelector('.room-card');
+      cardEl.dataset.sectionId = section.id;
+      cardEl.open = openRoomIds.has(section.id);
+
+      const summaryTitle = card.querySelector('.room-summary-title');
+      const summaryMeta = card.querySelector('.room-summary-meta');
+      const summaryPrice = card.querySelector('.room-summary-price');
+      card.querySelector('.room-summary-num').textContent = String(sectionIndex + 1).padStart(2, '0');
+      const updateSummary = () => {
+        summaryTitle.textContent = section.title.trim() || 'Untitled room';
+        summaryTitle.classList.toggle('is-empty', !section.title.trim());
+        const bullets = countScopeBullets(section);
+        summaryMeta.textContent = `${bullets} item${bullets === 1 ? '' : 's'}`;
+        summaryPrice.textContent = formatCurrency(Number(section.price) || 0);
+      };
+      updateSummary();
+
+      cardEl.addEventListener('toggle', () => {
+        if (cardEl.open) {
+          openRoomIds.add(section.id);
+          cardEl.querySelectorAll('.scope-item-text').forEach(autosizeTextarea);
+        } else {
+          openRoomIds.delete(section.id);
+        }
+      });
 
       const titleInput = card.querySelector('.room-title');
       titleInput.value = section.title;
-      titleInput.addEventListener('input', () => { section.title = titleInput.value; });
+      titleInput.addEventListener('input', () => { section.title = titleInput.value; updateSummary(); });
 
       const subtitleInput = card.querySelector('.room-subtitle');
       subtitleInput.value = section.subtitle || '';
@@ -870,6 +920,7 @@
       priceInput.value = section.price || '';
       priceInput.addEventListener('input', () => {
         section.price = Number(priceInput.value) || 0;
+        updateSummary();
         recalcTotals();
       });
 
@@ -877,18 +928,19 @@
       priceLabelInput.value = section.priceLabel || '';
       priceLabelInput.addEventListener('input', () => { section.priceLabel = priceLabelInput.value; });
 
-      const hidePriceInput = card.querySelector('.room-hide-price');
-      hidePriceInput.checked = !!section.hidePrice;
-      hidePriceInput.addEventListener('change', () => {
-        section.hidePrice = hidePriceInput.checked;
-        syncShowTotalOnlyToggle();
-      });
-
       card.querySelector('.room-remove').addEventListener('click', () => removeRoom(section.id));
 
       const snippetSelect = card.querySelector('.room-snippet-select');
       snippetSelect.addEventListener('change', () => {
         if (snippetSelect.value) insertSnippetIntoRoom(section.id, snippetSelect.value);
+      });
+
+      // Keep the AI panel open while it has something to say (e.g. "Generating…").
+      const aiPanel = card.querySelector('.room-ai');
+      aiPanel.open = openRoomAiIds.has(section.id) || !!section.scopeStatus;
+      aiPanel.addEventListener('toggle', () => {
+        if (aiPanel.open) openRoomAiIds.add(section.id);
+        else openRoomAiIds.delete(section.id);
       });
 
       const descTextarea = card.querySelector('.room-description');
@@ -924,34 +976,49 @@
           const textInput = itemFrag.querySelector('.scope-item-text');
           textInput.value = item.text;
           textInput.placeholder = item.type === 'tradeLabel' ? 'Trade label (e.g. Plumbing)' : 'Bullet text';
-          textInput.addEventListener('input', () => { item.text = textInput.value; });
+          textInput.addEventListener('input', () => {
+            item.text = textInput.value;
+            autosizeTextarea(textInput);
+            updateSummary();
+          });
+          // Bullets are single lines on the proposal: Enter starts the next bullet instead of a newline.
+          textInput.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+            e.preventDefault();
+            addScopeItem(section.id, side, 'bullet', index + 1);
+            focusScopeItem(section.id, side, index + 1);
+          });
           itemFrag.querySelector('.scope-item-insert').addEventListener('click', () => addScopeItem(section.id, side, 'bullet', index));
           itemFrag.querySelector('.scope-item-remove').addEventListener('click', () => removeScopeItem(section.id, side, index));
           columnEl.appendChild(itemFrag);
         });
 
-        const header = card.querySelector(`.scope-column[data-side="${side}"] .scope-column-header`);
-        header.querySelectorAll('[data-add]').forEach((btn) => {
-          btn.addEventListener('click', () => addScopeItem(section.id, side, btn.dataset.add));
+        card.querySelectorAll(`.scope-column[data-side="${side}"] [data-add]`).forEach((btn) => {
+          btn.addEventListener('click', () => {
+            addScopeItem(section.id, side, btn.dataset.add);
+            focusScopeItem(section.id, side, items.length - 1);
+          });
         });
       }
 
       roomsList.appendChild(cardEl);
-    }
-    syncShowTotalOnlyToggle();
+      if (cardEl.open) cardEl.querySelectorAll('.scope-item-text').forEach(autosizeTextarea);
+    });
   }
 
-  // "Show total only" isn't stored anywhere itself -- it's just a shortcut
-  // that reads/sets every room's hidePrice, so a proposal can also hide
-  // prices on only some rooms.
-  function syncShowTotalOnlyToggle() {
-    el('showTotalOnlyToggle').checked = state.sections.length > 0 && state.sections.every((s) => s.hidePrice);
+  // Proposals saved while prices could be hidden per room may have only some
+  // hidden; any hidden room turns the proposal-wide toggle on.
+  function sectionsShowTotalOnly(sections) {
+    return (sections || []).some((s) => s.hidePrice);
   }
 
-  el('showTotalOnlyToggle').addEventListener('change', (e) => {
-    state.sections.forEach((s) => { s.hidePrice = e.target.checked; });
-    renderRooms();
-  });
+  function setShowTotalOnly(on) {
+    state.showTotalOnly = !!on;
+    el('showTotalOnlyToggle').checked = state.showTotalOnly;
+  }
+
+  // The document-level change listener refreshes the preview.
+  el('showTotalOnlyToggle').addEventListener('change', (e) => { state.showTotalOnly = e.target.checked; });
 
   el('addRoomBtn').addEventListener('click', addRoom);
 
@@ -1287,7 +1354,7 @@
         subtitle: s.subtitle ? s.subtitle.trim() : undefined,
         price: Number(s.price) || 0,
         priceLabel: s.priceLabel ? s.priceLabel.trim() : undefined,
-        hidePrice: s.hidePrice ? true : undefined,
+        hidePrice: state.showTotalOnly ? true : undefined,
         leftScope: forPreview ? s.leftScope.map((it) => ({ ...it })) : s.leftScope.filter((it) => it.text.trim()),
         rightScope: forPreview ? s.rightScope.map((it) => ({ ...it })) : s.rightScope.filter((it) => it.text.trim()),
       })),
@@ -1351,12 +1418,12 @@
         subtitle: s.subtitle || '',
         price: s.price || 0,
         priceLabel: s.priceLabel || '',
-        hidePrice: !!s.hidePrice,
         description: '',
         scopeStatus: null,
         leftScope: (s.leftScope || []).map((it) => ({ ...it })),
         rightScope: (s.rightScope || []).map((it) => ({ ...it })),
       }));
+      setShowTotalOnly(sectionsShowTotalOnly(p.sections));
 
       state.clientSupplied = Array.isArray(p.client_supplied) ? [...p.client_supplied] : [];
 
@@ -1645,6 +1712,18 @@
   document.addEventListener('input', recalcTotals);
   document.addEventListener('input', schedulePreviewRefresh);
   document.addEventListener('change', schedulePreviewRefresh);
+
+  // ---- Sidebar tabs ----------------------------------------------------------
+
+  const sidebarGroups = Array.from(document.querySelectorAll('.sidebar-group[data-tab]'));
+  const sidebarTabButtons = Array.from(document.querySelectorAll('#sidebarTabs [data-tab]'));
+
+  function showSidebarTab(tab) {
+    sidebarTabButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.tab === tab));
+    sidebarGroups.forEach((group) => group.classList.toggle('is-active-tab', group.dataset.tab === tab));
+  }
+
+  sidebarTabButtons.forEach((btn) => btn.addEventListener('click', () => showSidebarTab(btn.dataset.tab)));
 
   async function init() {
     populateSnippetSelects();

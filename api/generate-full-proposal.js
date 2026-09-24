@@ -58,10 +58,6 @@ const SECTION_SCHEMA = {
     subtitle: { type: 'string' },
     price: { type: 'number' },
     priceLabel: { type: 'string' },
-    hidePrice: {
-      type: 'boolean',
-      description: 'True to hide this room\'s price on the proposal (it still counts toward the total).',
-    },
     leftScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
     rightScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
   },
@@ -92,7 +88,8 @@ const EDIT_TOOL = {
         type: 'boolean',
         description:
           'Set true to hide every room\'s individual price so only the total project investment shows (e.g. "only ' +
-          'show the total"); false to show them all again. Omit to leave as-is. Prefer this over updating each room.',
+          'show the total"); false to show them all again. Omit to leave as-is. This is proposal-wide -- prices ' +
+          'can\'t be hidden on only some rooms.',
       },
       sectionChanges: {
         type: 'array',
@@ -150,7 +147,6 @@ function editableSection(s) {
     subtitle: s.subtitle || '',
     price: Number(s.price) || 0,
     priceLabel: s.priceLabel || '',
-    ...(s.hidePrice ? { hidePrice: true } : {}),
     leftScope: s.leftScope || [],
     rightScope: s.rightScope || [],
   };
@@ -158,6 +154,11 @@ function editableSection(s) {
 
 function applyEditPatch(proposal, patch) {
   const sections = (proposal.sections || []).map(editableSection);
+  // "Show total price only" is proposal-wide: stored as hidePrice on every
+  // room, so re-apply it after the edit (updated/added rooms come back without it).
+  const hideAll = typeof patch.hideAllSectionPrices === 'boolean'
+    ? patch.hideAllSectionPrices
+    : (proposal.sections || []).some((s) => s.hidePrice);
   const changes = patch.sectionChanges || [];
   const isValidIndex = (c) => Number.isInteger(c.index) && c.index >= 0 && c.index < sections.length;
 
@@ -170,12 +171,7 @@ function applyEditPatch(proposal, patch) {
     .forEach((i) => sections.splice(i, 1));
   changes.filter((c) => c.op === 'add' && c.section)
     .forEach((c) => sections.push(editableSection(c.section)));
-  if (typeof patch.hideAllSectionPrices === 'boolean') {
-    sections.forEach((s) => {
-      if (patch.hideAllSectionPrices) s.hidePrice = true;
-      else delete s.hidePrice;
-    });
-  }
+  if (hideAll) sections.forEach((s) => { s.hidePrice = true; });
 
   const fields = patch.fieldChanges || {};
   const pick = (key, fallback) => (Object.prototype.hasOwnProperty.call(fields, key) ? fields[key] : fallback);

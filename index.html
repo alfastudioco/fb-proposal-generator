@@ -26,62 +26,32 @@
       <div id="chatLog" class="chat-log"></div>
     </div>
 
-    <details class="accordion-group">
-      <summary>Import &amp; Client Info</summary>
-      <div class="accordion-body">
-        <section class="panel">
-          <h2>Import Invoice/Proposal</h2>
-          <label>Upload an invoice, estimate, or proposal (PDF or photo) — starts a brand-new proposal<input type="file" id="importDocumentInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp"></label>
-          <button type="button" class="btn-add" id="importDocumentBtn">Import &amp; Make It Fancy</button>
-          <div id="importDocumentStatus" class="generate-status"></div>
-        </section>
+    <nav class="sidebar-tabs" id="sidebarTabs">
+      <button type="button" data-tab="rooms" class="is-active">Rooms</button>
+      <button type="button" data-tab="client">Client</button>
+      <button type="button" data-tab="notes">Notes &amp; Terms</button>
+      <button type="button" data-tab="pricing">Pricing &amp; Status</button>
+      <button type="button" data-tab="import">Import</button>
+    </nav>
 
+    <section class="sidebar-group is-active-tab" data-tab="rooms">
+      <div class="sidebar-group-body">
         <section class="panel">
-          <h2>Draft from Blueprints</h2>
-          <label>Upload blueprints/plans (PDF or photos, up to 15 files)<input type="file" id="blueprintFilesInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple></label>
-          <label>Notes (optional)<textarea id="blueprintNotes" rows="2" maxlength="2000" placeholder="Finish level, exclusions, anything the plans don't show (optional)"></textarea></label>
-          <button type="button" class="btn-add" id="draftFromBlueprintsBtn">Draft from Blueprints</button>
-          <div id="blueprintDraftStatus" class="generate-status"></div>
-        </section>
-
-        <section class="panel">
-          <h2>Client Information</h2>
-          <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
-          <label>Proposal Number<input type="text" id="proposalNum" placeholder="1901"></label>
-          <label>Property Address<input type="text" id="propertyAddress" placeholder="123 Main St, City, IL"></label>
-          <div class="row">
-            <label>Phone<input type="text" id="clientPhone" placeholder="847-555-0100"></label>
-            <label>Email<input type="text" id="clientEmail" placeholder="client@example.com"></label>
-          </div>
-          <label>Date<input type="text" id="proposalDate"></label>
-          <label>Timeline<input type="text" id="timeline" placeholder="6–8 Weeks"></label>
-
-          <label>Upload Client Info (screenshot, business card, note)<input type="file" id="clientImageInput" accept="image/*"></label>
-          <button type="button" class="btn-add" id="extractClientBtn">Extract from Image</button>
-          <div id="clientExtractStatus" class="generate-status"></div>
-          <div id="clientMatchPanel" class="client-match-panel is-hidden"></div>
-        </section>
-      </div>
-    </details>
-
-    <details class="accordion-group" open>
-      <summary>Rooms &amp; Scope</summary>
-      <div class="accordion-body">
-        <section class="panel">
-          <div class="panel-header">
-            <h2>Rooms &amp; Scope</h2>
-            <button type="button" class="btn-add" id="addRoomBtn">+ Add Room</button>
-          </div>
-          <div class="ai-scope-generator">
-            <textarea id="fullProjectDescription" class="room-description" rows="3" placeholder="Describe the entire project in plain language (e.g. &quot;gut kitchen and hall bath remodel, new luxury vinyl plank in both, move island plumbing&quot;) and AI will draft every room at once."></textarea>
-            <button type="button" class="btn-add" id="draftFullProposalBtn">Draft Full Proposal from Description</button>
-            <div id="fullProposalStatus" class="room-scope-status"></div>
-          </div>
-          <label class="checkbox-label">
+          <label class="checkbox-label total-only-toggle">
             <input type="checkbox" id="showTotalOnlyToggle">
-            Show total only (hide every room's price)
+            Show total price only (hide room prices)
           </label>
           <div id="roomsList"></div>
+          <button type="button" class="btn-add-room" id="addRoomBtn">+ Add Room</button>
+
+          <details class="ai-disclosure">
+            <summary>&#10024; Draft every room from a description</summary>
+            <div class="ai-scope-generator">
+              <textarea id="fullProjectDescription" class="room-description" rows="3" placeholder="Describe the entire project in plain language (e.g. &quot;gut kitchen and hall bath remodel, new luxury vinyl plank in both, move island plumbing&quot;) and AI will draft every room at once."></textarea>
+              <button type="button" class="btn-add" id="draftFullProposalBtn">Draft Full Proposal from Description</button>
+              <div id="fullProposalStatus" class="room-scope-status"></div>
+            </div>
+          </details>
         </section>
 
         <section class="panel">
@@ -95,11 +65,36 @@
           <button type="button" class="btn-add" id="addClientSuppliedBtn">+ Add Item</button>
         </section>
       </div>
-    </details>
+    </section>
 
-    <details class="accordion-group">
-      <summary>Notes &amp; Terms</summary>
-      <div class="accordion-body">
+    <section class="sidebar-group" data-tab="client">
+      <div class="sidebar-group-body">
+        <section class="panel">
+          <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
+          <label>Property Address<input type="text" id="propertyAddress" placeholder="123 Main St, City, IL"></label>
+          <div class="row">
+            <label>Phone<input type="text" id="clientPhone" placeholder="847-555-0100"></label>
+            <label>Email<input type="text" id="clientEmail" placeholder="client@example.com"></label>
+          </div>
+          <div class="row">
+            <label>Proposal Number<input type="text" id="proposalNum" placeholder="1901"></label>
+            <label>Date<input type="text" id="proposalDate"></label>
+          </div>
+          <label>Timeline<input type="text" id="timeline" placeholder="6–8 Weeks"></label>
+
+          <details class="ai-disclosure">
+            <summary>&#10024; Fill in from a screenshot or business card</summary>
+            <label>Upload Client Info (screenshot, business card, note)<input type="file" id="clientImageInput" accept="image/*"></label>
+            <button type="button" class="btn-add" id="extractClientBtn">Extract from Image</button>
+            <div id="clientExtractStatus" class="generate-status"></div>
+          </details>
+          <div id="clientMatchPanel" class="client-match-panel is-hidden"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="sidebar-group" data-tab="notes">
+      <div class="sidebar-group-body">
         <section class="panel">
           <div class="panel-header">
             <h2>Additional Notes &amp; Exclusions</h2>
@@ -107,7 +102,7 @@
               <option value="">+ Common note…</option>
             </select>
           </div>
-          <textarea id="notes" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
+          <textarea id="notes" class="panel-textarea" rows="5" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
 
           <details class="notes-library-manager">
             <summary>Manage custom notes…</summary>
@@ -128,16 +123,15 @@
               <option value="">+ Standard clause…</option>
             </select>
           </div>
-          <textarea id="termsAndConditions" rows="4" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
+          <textarea id="termsAndConditions" class="panel-textarea" rows="5" placeholder="One item per line for a bulleted list, or a single paragraph."></textarea>
         </section>
       </div>
-    </details>
+    </section>
 
-    <details class="accordion-group">
-      <summary>Investment Summary</summary>
-      <div class="accordion-body">
+    <section class="sidebar-group" data-tab="pricing">
+      <div class="sidebar-group-body">
         <section class="panel">
-          <h2>Investment Summary</h2>
+          <h2>On the Proposal</h2>
           <label>Total Label (shown under the total)<input type="text" id="totalLabel" placeholder="Kitchen • Bath • Flooring"></label>
           <label>Investment Note (optional, italic)<input type="text" id="investmentNote" placeholder="Cabinet pricing subject to finalization"></label>
           <label>Valid Until (optional)<input type="text" id="expirationDate" placeholder="30 days from proposal date"></label>
@@ -176,21 +170,42 @@
           <label>Payment Notes<textarea id="paymentNotes" rows="2" placeholder="Check #, partial payment schedule, etc."></textarea></label>
         </section>
       </div>
-    </details>
+    </section>
 
-    <div class="totals-bar">
-      <span class="totals-label">Total Project Investment</span>
-      <span class="totals-amount" id="totalsAmount">$0</span>
+    <section class="sidebar-group" data-tab="import">
+      <div class="sidebar-group-body">
+        <section class="panel">
+          <h2>Import Invoice/Proposal</h2>
+          <label>Upload an invoice, estimate, or proposal (PDF or photo) — starts a brand-new proposal<input type="file" id="importDocumentInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp"></label>
+          <button type="button" class="btn-add" id="importDocumentBtn">Import &amp; Make It Fancy</button>
+          <div id="importDocumentStatus" class="generate-status"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Draft from Blueprints</h2>
+          <label>Upload blueprints/plans (PDF or photos, up to 15 files)<input type="file" id="blueprintFilesInput" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple></label>
+          <label>Notes (optional)<textarea id="blueprintNotes" rows="2" maxlength="2000" placeholder="Finish level, exclusions, anything the plans don't show (optional)"></textarea></label>
+          <button type="button" class="btn-add" id="draftFromBlueprintsBtn">Draft from Blueprints</button>
+          <div id="blueprintDraftStatus" class="generate-status"></div>
+        </section>
+      </div>
+    </section>
+
+    <div class="sidebar-footer">
+      <div class="totals-bar">
+        <span class="totals-label">Total Project Investment</span>
+        <span class="totals-amount" id="totalsAmount">$0</span>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-preview" id="previewBtn">Preview Proposal</button>
+        <button type="button" class="btn-generate" id="generateBtn">Generate Word + PDF</button>
+      </div>
+      <button type="button" class="btn-save-as-new is-hidden" id="saveAsNewBtn">Save as New Version</button>
+
+      <div id="generateStatus" class="generate-status"></div>
+      <div id="downloadLinks" class="download-links"></div>
     </div>
-
-    <div class="actions">
-      <button type="button" class="btn-preview" id="previewBtn">Preview Proposal</button>
-      <button type="button" class="btn-generate" id="generateBtn">Generate Word + PDF</button>
-    </div>
-    <button type="button" class="btn-save-as-new is-hidden" id="saveAsNewBtn">Save as New Version</button>
-
-    <div id="generateStatus" class="generate-status"></div>
-    <div id="downloadLinks" class="download-links"></div>
   </aside>
 
   <main class="preview-panel">
@@ -199,57 +214,66 @@
 </div>
 
 <template id="roomCardTemplate">
-  <div class="room-card">
-    <div class="room-card-header">
-      <input type="text" class="room-title" placeholder="Room / Section Name">
-      <button type="button" class="btn-remove room-remove" title="Remove room">×</button>
-    </div>
-    <input type="text" class="room-subtitle" placeholder="Subtitle (optional, e.g. “Kitchen area & mudroom”)">
-    <div class="row">
-      <label class="room-price-label">Price<input type="number" class="room-price" placeholder="0"></label>
-      <label class="room-price-label">Price Label<input type="text" class="room-price-label-input" placeholder="INVESTMENT"></label>
-    </div>
-    <label class="checkbox-label"><input type="checkbox" class="room-hide-price"> Hide this price on the proposal (still counts toward the total)</label>
-    <select class="snippet-select room-snippet-select">
-      <option value="">+ Insert common scope…</option>
-    </select>
-
-    <div class="ai-scope-generator">
-      <label class="room-layout-image-label">Layout photos (optional, up to 5 — e.g. first floor, second floor, basement)<input type="file" class="room-layout-image" accept="image/jpeg,image/png,image/webp" multiple></label>
-      <textarea class="room-description" rows="2" placeholder="Describe the project in plain language (e.g. &quot;gut kitchen remodel, move the sink to an island, new hardwood floor&quot;)"></textarea>
-      <button type="button" class="btn-add generate-scope-btn">Generate Scope</button>
-      <div class="room-scope-status"></div>
-    </div>
-
-    <div class="scope-columns">
-      <div class="scope-column" data-side="left">
-        <div class="scope-column-header">
-          <span>Left Column</span>
-          <span class="scope-add-group">
-            <button type="button" class="btn-add-small" data-add="tradeLabel">+ Label</button>
-            <button type="button" class="btn-add-small" data-add="bullet">+ Bullet</button>
-          </span>
-        </div>
-        <div class="scope-items" data-side="left"></div>
+  <details class="room-card">
+    <summary class="room-summary">
+      <span class="room-summary-num"></span>
+      <span class="room-summary-title"></span>
+      <span class="room-summary-meta"></span>
+      <span class="room-summary-price"></span>
+    </summary>
+    <div class="room-body">
+      <div class="room-card-header">
+        <input type="text" class="room-title" placeholder="Room / Section Name">
+        <button type="button" class="btn-remove room-remove" title="Remove room">×</button>
       </div>
-      <div class="scope-column" data-side="right">
-        <div class="scope-column-header">
-          <span>Right Column</span>
-          <span class="scope-add-group">
-            <button type="button" class="btn-add-small" data-add="tradeLabel">+ Label</button>
-            <button type="button" class="btn-add-small" data-add="bullet">+ Bullet</button>
-          </span>
+      <input type="text" class="room-subtitle" placeholder="Subtitle (optional, e.g. “Kitchen area &amp; mudroom”)">
+      <div class="row">
+        <label class="room-price-label">Price<input type="number" class="room-price" placeholder="0"></label>
+        <label class="room-price-label">Price Label<input type="text" class="room-price-label-input" placeholder="INVESTMENT"></label>
+      </div>
+
+      <details class="ai-disclosure room-ai">
+        <summary>&#10024; Generate scope with AI</summary>
+        <div class="ai-scope-generator">
+          <textarea class="room-description" rows="2" placeholder="Describe the project in plain language (e.g. &quot;gut kitchen remodel, move the sink to an island, new hardwood floor&quot;)"></textarea>
+          <label class="room-layout-image-label">Layout photos (optional, up to 5 — e.g. first floor, second floor, basement)<input type="file" class="room-layout-image" accept="image/jpeg,image/png,image/webp" multiple></label>
+          <button type="button" class="btn-add generate-scope-btn">Generate Scope</button>
+          <div class="room-scope-status"></div>
         </div>
-        <div class="scope-items" data-side="right"></div>
+      </details>
+
+      <div class="scope-toolbar">
+        <span class="scope-toolbar-title">Scope of Work</span>
+        <select class="snippet-select room-snippet-select">
+          <option value="">+ Insert common scope…</option>
+        </select>
+      </div>
+      <div class="scope-columns">
+        <div class="scope-column" data-side="left">
+          <div class="scope-column-header">Left column</div>
+          <div class="scope-items" data-side="left"></div>
+          <div class="scope-add-group">
+            <button type="button" class="btn-add-small" data-add="tradeLabel">+ Trade label</button>
+            <button type="button" class="btn-add-small" data-add="bullet">+ Bullet</button>
+          </div>
+        </div>
+        <div class="scope-column" data-side="right">
+          <div class="scope-column-header">Right column</div>
+          <div class="scope-items" data-side="right"></div>
+          <div class="scope-add-group">
+            <button type="button" class="btn-add-small" data-add="tradeLabel">+ Trade label</button>
+            <button type="button" class="btn-add-small" data-add="bullet">+ Bullet</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </details>
 </template>
 
 <template id="scopeItemTemplate">
   <div class="scope-item">
     <button type="button" class="btn-insert scope-item-insert" title="Insert bullet above">+</button>
-    <input type="text" class="scope-item-text">
+    <textarea class="scope-item-text" rows="1"></textarea>
     <button type="button" class="btn-remove scope-item-remove" title="Remove">×</button>
   </div>
 </template>
