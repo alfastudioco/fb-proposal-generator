@@ -2,6 +2,7 @@ const { buildProposal } = require('../generator/buildProposal');
 const { renderProposalHtml } = require('../generator/renderHtml');
 const { validateProposalData } = require('../generator/validate');
 const { getSupabaseClient } = require('../lib/supabase');
+const { saveClientForProposal } = require('../lib/clientMatching');
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
@@ -101,9 +102,19 @@ module.exports = async function handler(req, res) {
     if (docxSigned.error) throw docxSigned.error;
     if (pdfSigned.error) throw pdfSigned.error;
 
+    // Keeps fbpg_clients (the search-as-you-type client list) in sync with
+    // what was just proposed. Like the proposals write below, a failure here
+    // must never block file delivery -- the proposal just saves unlinked.
+    let clientId = data.clientId ?? null;
+    try {
+      clientId = await saveClientForProposal(supabase, data.client, data.clientId);
+    } catch (clientErr) {
+      console.error('client save failed (non-fatal):', clientErr);
+    }
+
     const row = {
       proposal_num: data.proposalNum,
-      client_id: data.clientId ?? null,
+      client_id: clientId,
       client_name: data.client.name,
       client_address: data.client.address ?? null,
       client_phone: data.client.phone ?? null,
@@ -148,6 +159,7 @@ module.exports = async function handler(req, res) {
       docxUrl: docxSigned.data.signedUrl,
       pdfUrl: pdfSigned.data.signedUrl,
       id: savedRow ? savedRow.id : undefined,
+      clientId: clientId || undefined,
     });
   } catch (err) {
     console.error('Storage/DB step failed:', err);

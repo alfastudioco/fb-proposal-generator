@@ -75,6 +75,145 @@
     });
   }
 
+  // ---- Saved-client search (fbpg_clients) ------------------------------------
+  //
+  // Typing in Client Name searches saved clients; picking one fills the
+  // contact fields and links the proposal to that client (state.clientId).
+  // Generate then updates that client record rather than creating another
+  // (see saveClientForProposal in lib/clientMatching.js).
+
+  // linkedName is the client name the link was made under. Retyping Client
+  // Name to something else drops the link (see the input handler below), so
+  // starting a proposal for a different person can't overwrite this client.
+  let linkedClientName = '';
+  const normalizeClientName = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+  function setClientLink(id, linkedName) {
+    state.clientId = id || null;
+    linkedClientName = state.clientId ? normalizeClientName(linkedName) : '';
+    el('clientLinkedTag').classList.toggle('is-hidden', !state.clientId);
+  }
+
+  function fillClientFields(client) {
+    setClientLink(client.id, client.name);
+    el('clientName').value = client.name || '';
+    el('propertyAddress').value = client.address || '';
+    el('clientPhone').value = client.phone || '';
+    el('clientEmail').value = client.email || '';
+  }
+
+  el('clientUnlinkBtn').addEventListener('click', () => setClientLink(null));
+
+  const clientNameInput = el('clientName');
+  const clientSuggest = el('clientSuggest');
+  let clientSuggestions = [];
+  let clientSuggestActive = -1;
+  let clientSearchTimer = null;
+  let clientSearchSeq = 0;
+
+  function hideClientSuggest() {
+    clientSuggest.classList.add('is-hidden');
+    clientNameInput.setAttribute('aria-expanded', 'false');
+    clientSuggestions = [];
+    clientSuggestActive = -1;
+  }
+
+  function renderClientSuggest(q) {
+    clientSuggest.innerHTML = '';
+    if (!clientSuggestions.length) {
+      const empty = document.createElement('div');
+      empty.className = 'client-suggest-empty';
+      empty.textContent = `No saved clients match "${q}" — a new client will be saved when you generate.`;
+      clientSuggest.appendChild(empty);
+    }
+    clientSuggestions.forEach((client, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'client-suggest-item' + (i === clientSuggestActive ? ' is-active' : '');
+      btn.setAttribute('role', 'option');
+      const name = document.createElement('span');
+      name.className = 'client-suggest-name';
+      name.textContent = client.name;
+      btn.appendChild(name);
+      const detail = [client.address, client.phone, client.email].filter(Boolean).join(' · ');
+      if (detail) {
+        const d = document.createElement('span');
+        d.className = 'client-suggest-detail';
+        d.textContent = detail;
+        btn.appendChild(d);
+      }
+      // mousedown, not click -- click fires after the input's blur has
+      // already hidden the dropdown.
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        pickClientSuggestion(i);
+      });
+      clientSuggest.appendChild(btn);
+    });
+    clientSuggest.classList.remove('is-hidden');
+    clientNameInput.setAttribute('aria-expanded', 'true');
+  }
+
+  function pickClientSuggestion(i) {
+    const client = clientSuggestions[i];
+    if (!client) return;
+    fillClientFields(client);
+    hideClientSuggest();
+    el('clientMatchPanel').classList.add('is-hidden');
+    previewProposal();
+  }
+
+  async function searchClients(q) {
+    const seq = ++clientSearchSeq;
+    try {
+      const res = await fetch(`/api/clients?q=${encodeURIComponent(q)}`);
+      const body = await res.json();
+      // Drop stale responses -- only the latest keystroke's results count,
+      // and not at all once the field has lost focus.
+      if (seq !== clientSearchSeq || document.activeElement !== clientNameInput) return;
+      if (!res.ok) { hideClientSuggest(); return; }
+      clientSuggestions = (body.clients || []).slice(0, 8);
+      clientSuggestActive = -1;
+      renderClientSuggest(q);
+    } catch (err) {
+      if (seq === clientSearchSeq) hideClientSuggest();
+    }
+  }
+
+  clientNameInput.addEventListener('input', () => {
+    clearTimeout(clientSearchTimer);
+    const q = clientNameInput.value.trim();
+    if (state.clientId && normalizeClientName(q) !== linkedClientName) setClientLink(null);
+    if (q.length < 2) { clientSearchSeq += 1; hideClientSuggest(); return; }
+    clientSearchTimer = setTimeout(() => searchClients(q), 200);
+  });
+
+  clientNameInput.addEventListener('keydown', (e) => {
+    if (clientSuggest.classList.contains('is-hidden') || !clientSuggestions.length) {
+      if (e.key === 'Escape') hideClientSuggest();
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const n = clientSuggestions.length;
+      clientSuggestActive = e.key === 'ArrowDown'
+        ? (clientSuggestActive + 1) % n
+        : (clientSuggestActive - 1 + n) % n;
+      renderClientSuggest(clientNameInput.value.trim());
+    } else if (e.key === 'Enter' && clientSuggestActive >= 0) {
+      e.preventDefault();
+      pickClientSuggestion(clientSuggestActive);
+    } else if (e.key === 'Escape') {
+      hideClientSuggest();
+    }
+  });
+
+  clientNameInput.addEventListener('blur', () => {
+    clearTimeout(clientSearchTimer);
+    clientSearchSeq += 1;
+    hideClientSuggest();
+  });
+
   function renderClientMatches(matches) {
     const panel = el('clientMatchPanel');
     panel.innerHTML = '';
@@ -91,11 +230,7 @@
       btn.type = 'button';
       btn.textContent = `Use ${match.name}${match.address ? ` — ${match.address}` : ''}`;
       btn.addEventListener('click', () => {
-        state.clientId = match.id;
-        el('clientName').value = match.name || '';
-        el('propertyAddress').value = match.address || '';
-        el('clientPhone').value = match.phone || '';
-        el('clientEmail').value = match.email || '';
+        fillClientFields(match);
         panel.classList.add('is-hidden');
       });
       panel.appendChild(btn);
@@ -131,7 +266,7 @@
         return;
       }
 
-      state.clientId = null;
+      setClientLink(null);
       const { client, matches } = body;
       if (client.name) el('clientName').value = client.name;
       if (client.address) el('propertyAddress').value = client.address;
@@ -164,7 +299,7 @@
   // form are discarded.
   function loadImportedProposal(data) {
     state.editingId = null;
-    state.clientId = null;
+    setClientLink(null);
     state.paymentTermLines = [];
 
     el('clientName').value = (data.client && data.client.name) || '';
@@ -1410,7 +1545,7 @@
       el('paymentNotes').value = p.payment_notes || '';
 
       state.editingId = id;
-      state.clientId = p.client_id ?? null;
+      setClientLink(p.client_id ?? null, p.client_name);
 
       state.sections = (p.sections || []).map((s) => ({
         id: nextSectionId(),
@@ -1664,6 +1799,9 @@
         return;
       }
       generateStatus.textContent = 'Done.';
+      // The server saved/linked the client -- keep the link so the next
+      // Generate updates that same record.
+      if (body.clientId) setClientLink(body.clientId, data.client.name);
       if (!asNewVersion && state.editingId) showEditingState(state.editingId, data.proposalNum);
       if (asNewVersion && !body.id) {
         // Files were made but the history row wasn't -- don't leave the form

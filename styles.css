@@ -169,6 +169,59 @@ textarea { resize: vertical; }
 .client-match-panel button:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
 .client-match-panel button:hover { color: var(--orange); }
 
+/* Client Name search-as-you-type dropdown (fbpg_clients) */
+.client-search {
+  position: relative;
+  display: flow-root; /* keep the label's bottom margin inside, so top: below lands under the input */
+}
+.client-suggest {
+  position: absolute;
+  top: calc(100% - 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.client-suggest.is-hidden { display: none; }
+.client-suggest-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  padding: 7px 9px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.client-suggest-item:first-child { border-top: none; }
+.client-suggest-item.is-active, .client-suggest-item:hover { background: var(--navy-lite); }
+.client-suggest-name { display: block; font-size: 13px; color: var(--navy); }
+.client-suggest-detail { display: block; font-size: 11px; color: var(--lgray); margin-top: 1px; }
+.client-suggest-empty { padding: 7px 9px; font-size: 11px; color: var(--lgray); }
+
+.client-linked-tag {
+  margin: -6px 0 10px;
+  font-size: 11px;
+  color: var(--navy);
+}
+.client-linked-tag.is-hidden { display: none; }
+.client-linked-tag button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--orange);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .payment-terms-panel {
   margin-bottom: 10px;
   padding: 10px;

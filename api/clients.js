@@ -22,6 +22,23 @@ module.exports = async function handler(req, res) {
   return handleClients(req, res);
 };
 
+// Builds a PostgREST .or() filter matching q against name, address, email or
+// phone. Characters that are syntax in an .or() string (commas, parens,
+// quotes, backslash, *) are dropped from q first; "_" is kept, since emails
+// use it and as a one-character LIKE wildcard it still matches itself. A
+// mostly-digits q also
+// matches phones regardless of formatting ("8475550100" finds
+// "847-555-0100") by allowing anything between the digits.
+function clientSearchFilter(q) {
+  const term = q.replace(/[,()"'\\%*]/g, ' ').replace(/\s+/g, ' ').trim();
+  const filters = ['name', 'address', 'email', 'phone'].map((col) => `${col}.ilike.%${term}%`);
+  const digits = q.replace(/\D/g, '');
+  if (digits.length >= 3 && digits.length >= q.replace(/\s/g, '').length / 2) {
+    filters.push(`phone.ilike.%${digits.split('').join('%')}%`);
+  }
+  return filters.join(',');
+}
+
 async function handleClients(req, res) {
   const supabase = getSupabaseClient();
 
@@ -29,7 +46,7 @@ async function handleClients(req, res) {
     const q = (req.query && req.query.q ? String(req.query.q) : '').trim();
     try {
       let query = supabase.from('fbpg_clients').select('id, name, address, phone, email').order('created_at', { ascending: false }).limit(20);
-      if (q) query = query.ilike('name', `%${q}%`);
+      if (q) query = query.or(clientSearchFilter(q));
       const { data, error } = await query;
       if (error) throw error;
       return res.status(200).json({ clients: data });

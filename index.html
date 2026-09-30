@@ -70,7 +70,11 @@
     <section class="sidebar-group" data-tab="client">
       <div class="sidebar-group-body">
         <section class="panel">
-          <label>Client Name<input type="text" id="clientName" placeholder="Jane Smith"></label>
+          <div class="client-search">
+            <label>Client Name<input type="text" id="clientName" placeholder="Start typing to search saved clients" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="clientSuggest" aria-expanded="false"></label>
+            <div id="clientSuggest" class="client-suggest is-hidden" role="listbox"></div>
+          </div>
+          <div id="clientLinkedTag" class="client-linked-tag is-hidden">&#10003; Existing client &middot; <button type="button" id="clientUnlinkBtn">unlink</button></div>
           <label>Property Address<input type="text" id="propertyAddress" placeholder="123 Main St, City, IL"></label>
           <div class="row">
             <label>Phone<input type="text" id="clientPhone" placeholder="847-555-0100"></label>
