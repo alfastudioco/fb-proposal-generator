@@ -8,11 +8,13 @@
 //
 //   node scripts/backfill-clients.js           # dry run -- prints the plan, writes nothing
 //   node scripts/backfill-clients.js --apply   # creates clients + links proposals
+//   --skip=7891,8012                           # also leave these proposal numbers unlinked
 require('./load-env-local');
 const { getSupabaseClient } = require('../lib/supabase');
 const { normalizeName, findExactClient } = require('../lib/clientMatching');
 
 const APPLY = process.argv.includes('--apply');
+const SKIP_NUMS = new Set(((process.argv.find((a) => a.startsWith('--skip=')) || '').slice(7)).split(',').map((n) => n.trim()).filter(Boolean));
 
 async function main() {
   const supabase = getSupabaseClient();
@@ -24,10 +26,17 @@ async function main() {
     .order('created_at', { ascending: false });
   if (error) throw error;
 
+  // Proposals with only a name (no address/phone/email) are skipped and left
+  // unlinked -- names like "Joe" or "Manual" aren't enough to say who the
+  // client is, so those get a client assigned by hand instead.
+  const hasContact = (p) => [p.client_address, p.client_phone, p.client_email].some((v) => v && String(v).trim());
+  const isSkipped = (p) => !hasContact(p) || SKIP_NUMS.has(String(p.proposal_num));
+  const skipped = proposals.filter(isSkipped);
+
   const groups = new Map();
   for (const p of proposals) {
     const key = normalizeName(p.client_name);
-    if (!key) continue;
+    if (!key || isSkipped(p)) continue;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(p); // newest first, from the query order
   }
@@ -45,7 +54,12 @@ async function main() {
     };
   });
 
-  console.log(`${proposals.length} unlinked proposal(s) -> ${plan.length} client(s)\n`);
+  console.log(`${proposals.length} unlinked proposal(s) -> ${plan.length} client(s), ${skipped.length} skipped\n`);
+  if (skipped.length) {
+    console.log('Skipped (no contact info or --skip -- assign a client by hand):');
+    for (const p of skipped) console.log(`   #${p.proposal_num} ${p.client_name || '(no name)'}`);
+    console.log('');
+  }
   for (const { client, proposals: rows } of plan) {
     console.log(`${client.name}`);
     console.log(`   ${[client.address, client.phone, client.email].filter(Boolean).join(' | ') || '(no contact info)'}`);
