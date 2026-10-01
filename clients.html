@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FB Construction — Clients</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="history-page">
+  <header class="history-header">
+    <div>
+      <h1>FB Construction</h1>
+      <p>Clients</p>
+    </div>
+    <div class="history-header-actions">
+      <a class="btn-secondary" href="/proposals.html">Past Proposals</a>
+      <button type="button" class="btn-new" id="addClientBtn">+ Add Client</button>
+    </div>
+  </header>
+
+  <input type="text" id="clientFilter" class="clients-filter" placeholder="Search clients by name, address, phone or email">
+
+  <div id="clientsStatus" class="history-status"></div>
+
+  <table class="history-table" id="clientsTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Proposals</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="clientsBody"></tbody>
+  </table>
+</div>
+
+<script src="/clients.js"></script>
+</body>
+</html>

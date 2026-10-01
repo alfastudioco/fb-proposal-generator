@@ -11,7 +11,7 @@ const { getSupabaseClient } = require('../lib/supabase');
 // proposal back into the form.
 //
 // PATCH ?id=<uuid> updates only the sales-pipeline fields (status,
-// deposit/balance tracking) directly on the row -- unlike the main
+// deposit/balance tracking, linked client) directly on the row -- unlike the main
 // generate/update flow (api/generate.js), it does NOT touch sections,
 // pricing, or the docx/pdf files, so the history page's quick status
 // dropdown and payment editor don't pay for a document regeneration.
@@ -29,20 +29,21 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'PATCH') {
       if (!id) return res.status(400).json({ error: 'id is required' });
-      const { status, depositAmount, depositDate, balanceDue, paymentNotes } = req.body || {};
+      const { status, depositAmount, depositDate, balanceDue, paymentNotes, clientId } = req.body || {};
       const row = {};
       if (status !== undefined) row.status = status;
       if (depositAmount !== undefined) row.deposit_amount = depositAmount;
       if (depositDate !== undefined) row.deposit_date = depositDate;
       if (balanceDue !== undefined) row.balance_due = balanceDue;
       if (paymentNotes !== undefined) row.payment_notes = paymentNotes;
+      if (clientId !== undefined) row.client_id = clientId || null;
       if (!Object.keys(row).length) return res.status(400).json({ error: 'No updatable fields provided' });
 
       const { data, error } = await supabase
         .from('fbpg_proposals')
         .update(row)
         .eq('id', id)
-        .select('id, status, deposit_amount, deposit_date, balance_due, payment_notes')
+        .select('id, status, deposit_amount, deposit_date, balance_due, payment_notes, client_id, client:fbpg_clients(id, name)')
         .single();
       if (error) throw error;
       return res.status(200).json({ proposal: data });
@@ -56,7 +57,7 @@ module.exports = async function handler(req, res) {
 
     const { data, error } = await supabase
       .from('fbpg_proposals')
-      .select('id, proposal_num, client_name, date, total_amount, total_label, status, deposit_amount, deposit_date, balance_due, payment_notes, created_at')
+      .select('id, proposal_num, client_id, client:fbpg_clients(id, name), client_name, client_address, client_phone, client_email, date, total_amount, total_label, status, deposit_amount, deposit_date, balance_due, payment_notes, created_at')
       .order('created_at', { ascending: false })
       .limit(200);
     if (error) throw error;

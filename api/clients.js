@@ -45,7 +45,11 @@ async function handleClients(req, res) {
   if (req.method === 'GET') {
     const q = (req.query && req.query.q ? String(req.query.q) : '').trim();
     try {
-      let query = supabase.from('fbpg_clients').select('id, name, address, phone, email').order('created_at', { ascending: false }).limit(20);
+      // ?all=1 is the Clients page's full list (sorted by name); otherwise
+      // this is the search-as-you-type dropdown, capped at 20 newest.
+      const all = req.query && req.query.all === '1';
+      let query = supabase.from('fbpg_clients').select('id, name, address, phone, email');
+      query = all ? query.order('name', { ascending: true }).limit(1000) : query.order('created_at', { ascending: false }).limit(20);
       if (q) query = query.or(clientSearchFilter(q));
       const { data, error } = await query;
       if (error) throw error;
@@ -62,7 +66,8 @@ async function handleClients(req, res) {
       return res.status(400).json({ error: 'name is required to create a client' });
     }
     try {
-      const row = { name: name ?? undefined, address: address ?? null, phone: phone ?? null, email: email ?? null };
+      const clean = (v) => (v != null && String(v).trim()) || null;
+      const row = { name: clean(name) ?? undefined, address: clean(address), phone: clean(phone), email: clean(email) };
       const { data, error } = id
         ? await supabase.from('fbpg_clients').update(row).eq('id', id).select().single()
         : await supabase.from('fbpg_clients').insert(row).select().single();
@@ -71,6 +76,21 @@ async function handleClients(req, res) {
     } catch (err) {
       console.error('Client save failed:', err);
       return res.status(500).json({ error: 'Could not save client', details: err.message });
+    }
+  }
+
+  // The client's proposals are kept, just unlinked -- fbpg_proposals.client_id
+  // is "on delete set null" (supabase/schema.sql).
+  if (req.method === 'DELETE') {
+    const id = req.query && req.query.id ? String(req.query.id) : '';
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    try {
+      const { error } = await supabase.from('fbpg_clients').delete().eq('id', id);
+      if (error) throw error;
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error('Client delete failed:', err);
+      return res.status(500).json({ error: 'Could not delete client', details: err.message });
     }
   }
 

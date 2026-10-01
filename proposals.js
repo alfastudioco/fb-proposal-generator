@@ -199,6 +199,193 @@
     return td;
   }
 
+  // ---- Linked client (fbpg_clients) -- shows the linked client's name, or a
+  // "Link client" button for proposals saved before the client database
+  // existed or whose name alone wasn't enough to match. Linking only sets
+  // client_id; the proposal's own client snapshot and its files stay as-is.
+
+  function buildClientCell(proposal, tr) {
+    const td = document.createElement('td');
+    td.className = 'history-client';
+
+    const name = document.createElement('span');
+    name.className = 'history-client-name' + (proposal.client ? '' : ' is-unlinked');
+    name.textContent = proposal.client ? proposal.client.name : proposal.client_name;
+    td.appendChild(name);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-file history-client-btn';
+    btn.textContent = proposal.client ? 'Change' : 'Link client';
+    btn.addEventListener('click', () => toggleClientEditor(proposal, tr));
+    td.appendChild(btn);
+
+    return td;
+  }
+
+  async function saveClientLink(proposal, client, tr) {
+    const updated = await patchProposal(proposal.id, { clientId: client ? client.id : null });
+    proposal.client_id = updated.client_id;
+    proposal.client = updated.client;
+    closeOpenDepositEditors();
+    tr.replaceChild(buildClientCell(proposal, tr), tr.querySelector('.history-client'));
+  }
+
+  function makeButton(text, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-file';
+    btn.textContent = text;
+    if (onClick) btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function toggleClientEditor(proposal, tr) {
+    const existing = tr.nextElementSibling;
+    if (existing && existing.classList.contains('client-edit-row')) {
+      existing.remove();
+      return;
+    }
+    closeOpenDepositEditors();
+
+    // Shares .deposit-edit-row so closeOpenDepositEditors keeps one editor
+    // open at a time across both kinds.
+    const editRow = document.createElement('tr');
+    editRow.className = 'deposit-edit-row client-edit-row';
+    const td = document.createElement('td');
+    td.colSpan = HISTORY_COLUMN_COUNT;
+
+    const form = document.createElement('div');
+    form.className = 'deposit-edit-form';
+
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'client-link-search';
+    searchInput.placeholder = 'Search saved clients by name, address, phone or email';
+    searchInput.value = proposal.client ? '' : (proposal.client_name || '');
+
+    const editStatus = document.createElement('span');
+    editStatus.className = 'deposit-edit-status';
+
+    const results = document.createElement('div');
+    results.className = 'client-link-results';
+
+    // "+ New client" form, prefilled from the proposal's own client details.
+    const newForm = document.createElement('div');
+    newForm.className = 'deposit-edit-form client-link-new is-hidden';
+    const fields = {};
+    for (const [key, placeholder] of [['name', 'Client name'], ['address', 'Address'], ['phone', 'Phone'], ['email', 'Email']]) {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = placeholder;
+      input.value = proposal[`client_${key}`] || '';
+      fields[key] = input;
+      newForm.appendChild(input);
+    }
+
+    function setBusy(busy, text) {
+      editStatus.textContent = text;
+      td.querySelectorAll('button').forEach((b) => { b.disabled = busy; });
+    }
+
+    async function run(action, label) {
+      setBusy(true, label);
+      try {
+        await action();
+      } catch (err) {
+        setBusy(false, `Failed: ${err.message}`);
+      }
+    }
+
+    function renderResults(clients, q) {
+      results.innerHTML = '';
+      if (!clients.length) {
+        const empty = document.createElement('div');
+        empty.className = 'client-suggest-empty';
+        empty.textContent = q ? `No saved clients match "${q}" — use + New client.` : 'No saved clients yet — use + New client.';
+        results.appendChild(empty);
+        return;
+      }
+      for (const client of clients) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'client-suggest-item';
+        const n = document.createElement('span');
+        n.className = 'client-suggest-name';
+        n.textContent = client.name + (proposal.client_id === client.id ? ' (linked)' : '');
+        item.appendChild(n);
+        const detail = [client.address, client.phone, client.email].filter(Boolean).join(' · ');
+        if (detail) {
+          const d = document.createElement('span');
+          d.className = 'client-suggest-detail';
+          d.textContent = detail;
+          item.appendChild(d);
+        }
+        item.addEventListener('click', () => run(() => saveClientLink(proposal, client, tr), 'Linking…'));
+        results.appendChild(item);
+      }
+    }
+
+    let searchSeq = 0;
+    let searchTimer = null;
+    async function search() {
+      const q = searchInput.value.trim();
+      const seq = ++searchSeq;
+      try {
+        const res = await fetch(`/api/clients?q=${encodeURIComponent(q)}`);
+        const body = await res.json();
+        if (seq !== searchSeq) return; // a newer keystroke's search owns the list
+        if (!res.ok) throw new Error(body.details || body.error);
+        renderResults((body.clients || []).slice(0, 8), q);
+      } catch (err) {
+        if (seq === searchSeq) results.textContent = `Search failed: ${err.message}`;
+      }
+    }
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(search, 200);
+    });
+
+    const createBtn = makeButton('Save & link', () => {
+      if (!fields.name.value.trim()) {
+        editStatus.textContent = 'Client name is required.';
+        return;
+      }
+      run(async () => {
+        const res = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: fields.name.value, address: fields.address.value, phone: fields.phone.value, email: fields.email.value,
+          }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.details || body.error || 'Could not save client');
+        await saveClientLink(proposal, body.client, tr);
+      }, 'Saving…');
+    });
+    newForm.appendChild(createBtn);
+
+    form.appendChild(searchInput);
+    form.appendChild(makeButton('+ New client', () => {
+      newForm.classList.toggle('is-hidden');
+      if (!newForm.classList.contains('is-hidden')) fields.name.focus();
+    }));
+    if (proposal.client) {
+      form.appendChild(makeButton('Unlink', () => run(() => saveClientLink(proposal, null, tr), 'Unlinking…')));
+    }
+    form.appendChild(makeButton('Cancel', () => editRow.remove()));
+    form.appendChild(editStatus);
+
+    td.appendChild(form);
+    td.appendChild(newForm);
+    td.appendChild(results);
+    editRow.appendChild(td);
+    tr.after(editRow);
+    searchInput.focus();
+    search();
+  }
+
   function renderRow(proposal) {
     const tr = document.createElement('tr');
 
@@ -206,9 +393,7 @@
     numTd.textContent = proposal.proposal_num;
     tr.appendChild(numTd);
 
-    const clientTd = document.createElement('td');
-    clientTd.textContent = proposal.client_name;
-    tr.appendChild(clientTd);
+    tr.appendChild(buildClientCell(proposal, tr));
 
     tr.appendChild(buildStatusCell(proposal));
 

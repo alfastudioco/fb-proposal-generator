@@ -10,7 +10,6 @@ Explicitly **not** built yet (designed for, not built — see `generator/totals.
 - Payment terms box (deposit/balance) in place of the commitment box
 - Addendum / "Updated Proposal" type with line-item + payment-summary tables
 - Multi-page millwork/spec-heavy proposal type (cover page, spec tables, warranty/terms sections)
-- Supabase `clients` table autocomplete/reuse in the UI (table exists, UI wiring is a follow-up)
 - Signed-URL refresh flow for viewing proposals after their 7-day link expires
 
 ## Setup
@@ -57,7 +56,11 @@ On deploy, add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`,
 
 `POST /api/extract-client` — body `{ imageBase64, mediaType }` (a text/email screenshot, business card, or handwritten note). Returns `{ client: {name, phone, email, address}, matches }`, where `matches` are candidate `fbpg_clients` rows found by phone/email/name.
 
-`GET /api/clients?q=` / `POST /api/clients` — search `fbpg_clients` by name, or create/update a client record (`{id?, name, address, phone, email}`).
+`GET /api/clients?q=` / `POST /api/clients` / `DELETE /api/clients?id=` — search `fbpg_clients` by name, address, email or phone (`?all=1` returns the full list sorted by name, for the Clients page), create/update a client record (`{id?, name, address, phone, email}`), or delete one (its proposals are kept, just unlinked). `/api/generate` also saves the proposal's client here automatically -- see `saveClientForProposal` in `lib/clientMatching.js`.
+
+`PATCH /api/proposals?id=` accepts `clientId` (or `null`) to link/unlink a proposal to a client from the Past Proposals page without regenerating its files.
+
+`clients.html` is the Clients page (add/edit/delete clients, see each one's proposals). `npm run backfill-clients` (dry run; `--apply` to write, `--skip=<nums>` to leave proposals out) linked pre-existing proposals to clients; proposals with no contact info are left for linking by hand.
 
 `POST /api/generate-scope` — body `{ description, roomTitle?, images? }` (`images` is an array of up to 5 base64-encoded photos — e.g. different floors/areas covered by this one section — read together with the description). Returns `{ items, suggestedPrice, priceRationale }`, grounded in `snippets.js`'s real scope-of-work library and past proposal pricing.
 
