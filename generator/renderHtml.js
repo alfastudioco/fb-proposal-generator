@@ -30,7 +30,6 @@ const { COMMITMENT_TEXT } = require('./totals');
 // through the template below.
 const NAVY = `#${rawStyles.NAVY}`;
 const NAVY_DARK = `#${rawStyles.NAVY_DARK}`;
-const NAVY_LITE = `#${rawStyles.NAVY_LITE}`;
 const ORANGE = `#${rawStyles.ORANGE}`;
 const GRAY = `#${rawStyles.GRAY}`;
 const LGRAY = `#${rawStyles.LGRAY}`;
@@ -108,8 +107,8 @@ function renderSection(section, isHero, editable, sectionIndex) {
     ? `<span${editableAttrs(titleField)}>${esc(section.title || '')}</span>`
     : esc(section.title || '');
   const subtitleHtml = editable
-    ? `<div class="banner-subtitle"${editableAttrs(subtitleField)}>${esc(section.subtitle || '')}</div>`
-    : (section.subtitle ? `<div class="banner-subtitle">${esc(section.subtitle)}</div>` : '');
+    ? `<span class="banner-subtitle"${editableAttrs(subtitleField)}>${esc(section.subtitle || '')}</span>`
+    : (section.subtitle ? `<span class="banner-subtitle">${esc(section.subtitle)}</span>` : '');
   const priceLabelHtml = editable
     ? `<span${editableAttrs(priceLabelField)}>${esc(priceLabel)}</span>`
     : esc(priceLabel);
@@ -117,32 +116,18 @@ function renderSection(section, isHero, editable, sectionIndex) {
     ? `<span${editableAttrs(priceField)}>${esc(formatCurrency(section.price))}</span>`
     : esc(formatCurrency(section.price));
 
-  // hidePrice ("show total only") drops the price cell entirely; the title
-  // cell takes the full row. Same treatment as generator/sections.js.
-  const heroPriceHtml = section.hidePrice ? '' : `
-        <td class="banner-price hero">
-          <div class="investment-label hero">${priceLabelHtml}</div>
-          <div class="investment-amount hero">${priceAmountHtml}</div>
-        </td>`;
-  const standardPriceHtml = section.hidePrice ? '' : `
-        <td class="banner-price">
-          <div class="investment-label">${priceLabelHtml}</div>
-          <div class="investment-amount">${priceAmountHtml}</div>
-        </td>`;
+  // Clean "rule" banner (matches generator/sections.js): small orange
+  // number, serif title with inline gray subtitle, price on the right, one
+  // thin orange rule underneath. hidePrice ("show total only") drops the
+  // price cell; single-section (hero) proposals drop the number.
+  const numHtml = isHero ? '' : `<td class="badge">${esc(String(section.num).padStart(2, '0'))}</td>`;
+  const priceHtml = section.hidePrice ? '' : `
+        <td class="banner-price"><span class="investment-label">${priceLabelHtml}</span><span class="investment-amount">${priceAmountHtml}</span></td>`;
 
-  const bannerHtml = isHero
-    ? `
-    <table class="banner banner-hero">
+  const bannerHtml = `
+    <table class="banner${isHero ? ' banner-hero' : ''}">
       <tr>
-        <td class="banner-title hero">${titleHtml}${subtitleHtml}</td>${heroPriceHtml}
-      </tr>
-    </table>
-  `
-    : `
-    <table class="banner">
-      <tr>
-        <td class="badge">${esc(String(section.num).padStart(2, '0'))}</td>
-        <td class="banner-title">${titleHtml}${subtitleHtml}</td>${standardPriceHtml}
+        ${numHtml}<td class="banner-title">${titleHtml}${subtitleHtml}</td>${priceHtml}
       </tr>
     </table>
   `;
@@ -368,21 +353,17 @@ function renderProposalHtml(data, { editable = false } = {}) {
   .meta-value.client-name { font-family: ${ACCENT_FONT}, serif; font-size: 13pt; font-weight: normal; margin-bottom: 2px; }
   .meta-rule { display: none; }
 
-  .banner { margin: 20px 0 0; }
-  /* Numbered badge is now a light outline rather than a solid orange
-     square -- one strong dark block per section (the title cell) reads as
-     a more deliberate, confident anchor than several competing fills. */
-  .badge { background: #fff; border: 1pt solid ${ORANGE}; color: ${ORANGE}; font-family: ${ACCENT_FONT}, serif; font-weight: normal; font-size: 15pt; text-align: center; width: 56px; padding: 10px; }
-  .banner-title { background: ${NAVY_DARK}; color: #fff; font-family: ${ACCENT_FONT}, serif; font-weight: normal; font-size: 22pt; letter-spacing: 0.2px; padding: 20px 26px; }
-  .banner-subtitle { font-family: ${FONT}, sans-serif; color: #bfd4ee; font-weight: normal; font-size: 9.5pt; letter-spacing: normal; margin-top: 4px; }
-  .banner-price { background: ${NAVY_LITE}; text-align: right; padding: 20px 26px; width: 24%; }
-  .investment-label { color: ${GRAY}; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
-  .investment-amount { font-family: ${ACCENT_FONT}, serif; color: ${NAVY}; font-size: 17pt; margin-top: 2px; }
-  /* Single-section "hero" banner variant (spec confirmed against real
-     reference proposals): no numbered badge, orange price cell. */
-  .banner-price.hero { background: ${ORANGE}; }
-  .investment-label.hero { color: #fff; }
-  .investment-amount.hero { color: #fff; }
+  /* Clean "rule" banner: no filled blocks -- small orange number, serif
+     title with an inline gray subtitle, price on the right, and one thin
+     orange rule under the row. Matches buildSectionBanner in sections.js. */
+  .banner { margin: 22px 0 0; border-bottom: 1.5pt solid ${ORANGE}; }
+  .banner td { vertical-align: baseline; padding: 0 0 6px; }
+  .badge { color: ${ORANGE}; font-size: 10.5pt; font-weight: bold; letter-spacing: 1px; width: 42px; white-space: nowrap; }
+  .banner-title { color: ${NAVY_DARK}; font-family: ${ACCENT_FONT}, serif; font-weight: normal; font-size: 18pt; letter-spacing: 0.2px; }
+  .banner-subtitle { font-family: ${FONT}, sans-serif; color: ${LGRAY}; font-size: 9pt; letter-spacing: normal; margin-left: 10px; }
+  .banner-price { text-align: right; white-space: nowrap; width: 1%; padding-left: 16px; }
+  .investment-label { color: ${LGRAY}; font-size: 7.5pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-right: 10px; }
+  .investment-amount { font-family: ${ACCENT_FONT}, serif; color: ${NAVY_DARK}; font-size: 15pt; }
 
   .scope { margin: 16px 0 24px; }
   .scope-col { width: 49.8%; vertical-align: top; padding-right: 20px; }

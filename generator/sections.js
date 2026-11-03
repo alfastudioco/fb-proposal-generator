@@ -3,7 +3,7 @@ const {
   WidthType, VerticalAlign, AlignmentType,
 } = require('docx');
 const {
-  NAVY, NAVY_DARK, NAVY_LITE, ORANGE, GRAY, LGRAY, BULLET_TEXT_COLOR,
+  NAVY, NAVY_DARK, ORANGE, GRAY, LGRAY, BULLET_TEXT_COLOR,
   FONT, ACCENT_FONT, COL_WIDTHS, FULL_WIDTH_DXA,
   pt, spacingPt, cellBorders, thinBorder, thickBorder, shade, formatCurrency,
 } = require('./styles');
@@ -136,149 +136,63 @@ function buildMetaBar({ client, proposalNum, date }) {
 
 // ---- 4.3 Section banner --------------------------------------------------
 
-function titleCellChildren(title, subtitle) {
-  const children = [
-    new Paragraph({
-      spacing: subtitle ? { after: spacingPt(4) } : undefined,
-      children: [
-        new TextRun({ text: title, font: ACCENT_FONT, size: pt(22), color: 'FFFFFF' }),
-      ],
-    }),
-  ];
-  if (subtitle) {
-    children.push(
-      new Paragraph({
-        children: [new TextRun({ text: subtitle, font: FONT, size: pt(9.5), color: 'BFD4EE' })],
-      }),
-    );
-  }
-  return children;
-}
+// Clean "rule" banner: no filled blocks -- a small orange section number,
+// the room name in the accent serif with its subtitle inline in gray, the
+// price right-aligned, and one thin orange rule under the whole row (drawn
+// as each cell's bottom border, which Word joins into a single line).
+// Single-section ("hero") proposals use the same row without the number.
+const BANNER_MARGINS = { top: 0, bottom: 110, left: 0, right: 0 };
 
-// Multi-section proposals (spec §4.3): numbered orange badge, navy title
-// (+ optional subtitle), light-navy price cell with orange label.
-function buildStandardBanner({ num, title, subtitle, price, priceLabel, hidePrice }) {
-  const [wBadge, wTitle, wPrice] = COL_WIDTHS.banner;
-  // hidePrice ("show total only"): drop the price cell and let the title
-  // span its width, so the row still fills the page.
-  const titleWidth = hidePrice ? wTitle + wPrice : wTitle;
-
-  // Light outline rather than a solid orange fill -- one strong dark block
-  // per section (the title cell) reads as a more deliberate, confident
-  // anchor than several competing solid fills.
-  const badgeCell = new TableCell({
-    width: { size: wBadge, type: WidthType.DXA },
-    verticalAlign: VerticalAlign.CENTER,
-    borders: cellBorders({
-      top: thinBorder(ORANGE), bottom: thinBorder(ORANGE), left: thinBorder(ORANGE), right: thinBorder(ORANGE),
-    }),
-    children: [
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({ text: String(num).padStart(2, '0'), font: ACCENT_FONT, size: pt(15), color: ORANGE }),
-        ],
-      }),
-    ],
-  });
-
-  const titleCell = new TableCell({
-    width: { size: titleWidth, type: WidthType.DXA },
-    shading: shade(NAVY_DARK),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 200, bottom: 200, left: 260, right: 260 },
-    borders: cellBorders(),
-    children: titleCellChildren(title, subtitle),
-  });
-
-  if (hidePrice) {
-    return new Table({
-      width: { size: wBadge + titleWidth, type: WidthType.DXA },
-      columnWidths: [wBadge, titleWidth],
-      rows: [new TableRow({ cantSplit: true, children: [badgeCell, titleCell] })],
-    });
-  }
-
-  const priceCell = new TableCell({
-    width: { size: wPrice, type: WidthType.DXA },
-    shading: shade(NAVY_LITE),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 200, bottom: 200, left: 260, right: 260 },
-    borders: cellBorders(),
-    children: [
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(7.5), bold: true, color: GRAY, characterSpacing: 12 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [new TextRun({ text: formatCurrency(price), font: ACCENT_FONT, size: pt(17), color: NAVY })],
-      }),
-    ],
-  });
-
-  return new Table({
-    width: { size: wBadge + wTitle + wPrice, type: WidthType.DXA },
-    columnWidths: COL_WIDTHS.banner,
-    rows: [new TableRow({ cantSplit: true, children: [badgeCell, titleCell, priceCell] })],
-  });
-}
-
-// Single-section proposals (confirmed against real reference proposals --
-// Mike Nash, Michelle Finch, Meghan Hamann): no numbered badge, orange
-// price cell instead of light-navy.
-function buildHeroBanner({ title, subtitle, price, priceLabel, hidePrice }) {
-  const [wTitle, wPrice] = COL_WIDTHS.heroBanner;
-  const titleWidth = hidePrice ? wTitle + wPrice : wTitle;
-
-  const titleCell = new TableCell({
-    width: { size: titleWidth, type: WidthType.DXA },
-    shading: shade(NAVY_DARK),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 200, bottom: 200, left: 260, right: 260 },
-    borders: cellBorders(),
-    children: titleCellChildren(title, subtitle),
-  });
-
-  if (hidePrice) {
-    return new Table({
-      width: { size: titleWidth, type: WidthType.DXA },
-      columnWidths: [titleWidth],
-      rows: [new TableRow({ cantSplit: true, children: [titleCell] })],
-    });
-  }
-
-  const priceCell = new TableCell({
-    width: { size: wPrice, type: WidthType.DXA },
-    shading: shade(ORANGE),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 200, bottom: 200, left: 260, right: 260 },
-    borders: cellBorders(),
-    children: [
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        spacing: { after: spacingPt(2) },
-        children: [new TextRun({ text: (priceLabel || 'INVESTMENT').toUpperCase(), font: FONT, size: pt(7.5), bold: true, color: 'FFFFFF', characterSpacing: 12 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [new TextRun({ text: formatCurrency(price), font: ACCENT_FONT, size: pt(17), color: 'FFFFFF' })],
-      }),
-    ],
-  });
-
-  return new Table({
-    width: { size: wTitle + wPrice, type: WidthType.DXA },
-    columnWidths: COL_WIDTHS.heroBanner,
-    rows: [new TableRow({ cantSplit: true, children: [titleCell, priceCell] })],
+function bannerCell(width, children) {
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.BOTTOM,
+    margins: BANNER_MARGINS,
+    borders: cellBorders({ bottom: thickBorder(ORANGE, 1.5) }),
+    children,
   });
 }
 
 function buildSectionBanner({ num, title, subtitle, price, priceLabel, hidePrice, hero }) {
-  return hero
-    ? buildHeroBanner({ title, subtitle, price, priceLabel, hidePrice })
-    : buildStandardBanner({ num, title, subtitle, price, priceLabel, hidePrice });
+  const [wNum, wTitle, wPrice] = COL_WIDTHS.banner;
+  const showNum = !hero;
+  const titleWidth = wTitle + (showNum ? 0 : wNum) + (hidePrice ? wPrice : 0);
+
+  const titleRuns = [new TextRun({ text: title || '', font: ACCENT_FONT, size: pt(18), color: NAVY_DARK })];
+  if (subtitle) {
+    titleRuns.push(new TextRun({ text: `   ${subtitle}`, font: FONT, size: pt(9), color: LGRAY }));
+  }
+
+  const cells = [];
+  const widths = [];
+  if (showNum) {
+    cells.push(bannerCell(wNum, [
+      new Paragraph({
+        children: [new TextRun({ text: String(num).padStart(2, '0'), font: FONT, size: pt(10.5), bold: true, color: ORANGE, characterSpacing: 20 })],
+      }),
+    ]));
+    widths.push(wNum);
+  }
+  cells.push(bannerCell(titleWidth, [new Paragraph({ children: titleRuns })]));
+  widths.push(titleWidth);
+  if (!hidePrice) {
+    cells.push(bannerCell(wPrice, [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new TextRun({ text: `${(priceLabel || 'INVESTMENT').toUpperCase()}   `, font: FONT, size: pt(7.5), bold: true, color: LGRAY, characterSpacing: 12 }),
+          new TextRun({ text: formatCurrency(price), font: ACCENT_FONT, size: pt(15), color: NAVY_DARK }),
+        ],
+      }),
+    ]));
+    widths.push(wPrice);
+  }
+
+  return new Table({
+    width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    columnWidths: widths,
+    rows: [new TableRow({ cantSplit: true, children: cells })],
+  });
 }
 
 // ---- 4.4 Two-column scope -------------------------------------------------

@@ -1823,14 +1823,27 @@
       if (body.docxUrl) {
         const a = document.createElement('a');
         a.href = body.docxUrl;
+        a.target = '_blank';
         a.textContent = 'Download Word';
         downloadLinks.appendChild(a);
       }
       if (body.pdfUrl) {
         const a = document.createElement('a');
         a.href = body.pdfUrl;
+        a.target = '_blank';
         a.textContent = 'Download PDF';
         downloadLinks.appendChild(a);
+        // Phones: attach the PDF straight to a text or email.
+        if (window.fbpgShare && window.fbpgShare.canShareFiles()) {
+          const pdfUrl = body.pdfUrl;
+          downloadLinks.appendChild(window.fbpgShare.makeSharePdfButton({
+            getUrl: async () => pdfUrl,
+            proposalNum: el('proposalNum').value.trim(),
+            clientName: el('clientName').value.trim(),
+            className: 'btn-share-pdf',
+            label: 'Share PDF',
+          }));
+        }
       }
     } catch (err) {
       generateStatus.textContent = `Network error: ${err.message}`;
@@ -1862,6 +1875,46 @@
   }
 
   sidebarTabButtons.forEach((btn) => btn.addEventListener('click', () => showSidebarTab(btn.dataset.tab)));
+
+  // ---- Phone layout: Edit / Preview toggle ------------------------------------
+  // Below the breakpoint (keep in sync with styles.css) the form and the
+  // preview each take the full screen. The preview keeps its real letter-page
+  // width (816px) and is scaled down to fit, so it looks like the actual PDF
+  // instead of a squeezed reflow.
+
+  const PAGE_WIDTH_PX = 816;
+  const mobileQuery = window.matchMedia('(max-width: 900px)');
+  const appEl = el('app');
+  const mobileToggleButtons = Array.from(document.querySelectorAll('#mobileViewToggle [data-view]'));
+
+  function fitPreviewToScreen() {
+    const panel = previewFrame.parentElement;
+    if (!mobileQuery.matches || appEl.dataset.mobileView !== 'preview') {
+      previewFrame.style.width = '';
+      previewFrame.style.height = '';
+      previewFrame.style.transform = '';
+      return;
+    }
+    const styles = getComputedStyle(panel);
+    const availW = panel.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+    const availH = panel.clientHeight - parseFloat(styles.paddingTop) - parseFloat(styles.paddingBottom);
+    const scale = Math.min(1, availW / PAGE_WIDTH_PX);
+    previewFrame.style.width = `${PAGE_WIDTH_PX}px`;
+    previewFrame.style.height = `${availH / scale}px`;
+    previewFrame.style.transform = `scale(${scale})`;
+  }
+
+  function setMobileView(view) {
+    appEl.dataset.mobileView = view;
+    mobileToggleButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.view === view));
+    window.scrollTo(0, 0);
+    fitPreviewToScreen();
+  }
+
+  mobileToggleButtons.forEach((btn) => btn.addEventListener('click', () => setMobileView(btn.dataset.view)));
+  el('previewBtn').addEventListener('click', () => { if (mobileQuery.matches) setMobileView('preview'); });
+  window.addEventListener('resize', fitPreviewToScreen);
+  mobileQuery.addEventListener('change', fitPreviewToScreen);
 
   async function init() {
     populateSnippetSelects();

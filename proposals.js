@@ -17,16 +17,26 @@
     });
   }
 
+  async function getFileUrl(id, type) {
+    const res = await fetch(`/api/proposal-link?id=${encodeURIComponent(id)}&type=${type}`);
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.details || body.error);
+    return body.url;
+  }
+
   async function downloadFile(id, type, buttonEl) {
     const originalText = buttonEl.textContent;
     buttonEl.textContent = '…';
     buttonEl.disabled = true;
+    // Open the tab during the tap: mobile Safari blocks window.open() once
+    // an await has happened, so open it blank now and point it at the file.
+    const win = window.open('', '_blank');
     try {
-      const res = await fetch(`/api/proposal-link?id=${encodeURIComponent(id)}&type=${type}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.details || body.error);
-      window.open(body.url, '_blank');
+      const url = await getFileUrl(id, type);
+      if (win) win.location.href = url;
+      else window.location.href = url;
     } catch (err) {
+      if (win) win.close();
       alert(`Could not get download link: ${err.message}`);
     } finally {
       buttonEl.textContent = originalText;
@@ -50,6 +60,8 @@
 
   function buildStatusCell(proposal) {
     const td = document.createElement('td');
+    td.className = 'history-status-cell';
+    td.dataset.label = 'Status';
     const select = document.createElement('select');
     select.className = 'history-status-select';
     for (const status of statusOptions) {
@@ -183,6 +195,7 @@
   function buildDepositCell(proposal, tr) {
     const td = document.createElement('td');
     td.className = 'history-deposit';
+    td.dataset.label = 'Deposit';
 
     const summary = document.createElement('span');
     summary.className = 'deposit-summary';
@@ -207,6 +220,7 @@
   function buildClientCell(proposal, tr) {
     const td = document.createElement('td');
     td.className = 'history-client';
+    td.dataset.label = 'Client';
 
     const name = document.createElement('span');
     name.className = 'history-client-name' + (proposal.client ? '' : ' is-unlinked');
@@ -390,6 +404,8 @@
     const tr = document.createElement('tr');
 
     const numTd = document.createElement('td');
+    numTd.className = 'history-num';
+    numTd.dataset.label = 'Proposal #';
     numTd.textContent = proposal.proposal_num;
     tr.appendChild(numTd);
 
@@ -398,16 +414,22 @@
     tr.appendChild(buildStatusCell(proposal));
 
     const dateTd = document.createElement('td');
+    dateTd.className = 'history-date';
+    dateTd.dataset.label = 'Date';
     dateTd.textContent = proposal.date;
     tr.appendChild(dateTd);
 
     const totalTd = document.createElement('td');
+    totalTd.className = 'history-total';
+    totalTd.dataset.label = 'Total';
     totalTd.textContent = formatCurrency(proposal.total_amount);
     tr.appendChild(totalTd);
 
     tr.appendChild(buildDepositCell(proposal, tr));
 
     const createdTd = document.createElement('td');
+    createdTd.className = 'history-created';
+    createdTd.dataset.label = 'Created';
     createdTd.textContent = formatCreatedAt(proposal.created_at);
     tr.appendChild(createdTd);
 
@@ -430,6 +452,16 @@
     pdfBtn.addEventListener('click', () => downloadFile(proposal.id, 'pdf', pdfBtn));
     filesCell.appendChild(docxBtn);
     filesCell.appendChild(pdfBtn);
+    // Phones get a Share button that attaches the PDF to a text or email.
+    if (window.fbpgShare && window.fbpgShare.canShareFiles()) {
+      filesCell.appendChild(window.fbpgShare.makeSharePdfButton({
+        getUrl: () => getFileUrl(proposal.id, 'pdf'),
+        proposalNum: proposal.proposal_num,
+        clientName: proposal.client ? proposal.client.name : proposal.client_name,
+        className: 'btn-file btn-share',
+        label: 'Share PDF',
+      }));
+    }
     tr.appendChild(filesCell);
 
     return tr;

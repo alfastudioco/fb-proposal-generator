@@ -970,3 +970,197 @@ button.btn-new { border: none; font-family: inherit; cursor: pointer; }
 .sidebar-tabs button:hover { color: var(--navy); }
 .sidebar-tabs button.is-active { color: var(--navy); border-bottom-color: var(--orange); }
 
+
+/* ---- Share PDF (phones; shown only where the browser can share files) ---- */
+.btn-share-pdf {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  border-radius: 6px;
+  background: var(--orange);
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+}
+.btn-file.btn-share { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+.mobile-view-toggle { display: none; }
+
+/* =========================================================================
+   Phones and small tablets. Breakpoint is mirrored in app.js (mobileQuery).
+   ========================================================================= */
+@media (max-width: 900px) {
+  /* iOS zooms the page when focusing any input under 16px -- keep them 16px. */
+  input, select, textarea,
+  label input, label textarea,
+  .scope-item-text, .room-title, .room-subtitle, .panel-textarea,
+  .chat-panel textarea, .snippet-select, .room-snippet-select,
+  .payment-term-label, .payment-term-amount, .custom-note-add input, .custom-note-add textarea,
+  .custom-note-item-label, .custom-note-item-text, .deposit-edit-form input,
+  .clients-filter, .history-status-select {
+    font-size: 16px;
+  }
+
+  /* ---- Editor: one column, Edit / Preview toggle ---- */
+  .app { display: block; height: auto; }
+
+  .mobile-view-toggle {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--navy-dark);
+    height: 48px; /* the sticky tabs and the preview panel sit right below this */
+    padding: 6px;
+    gap: 6px;
+  }
+  .mobile-view-toggle button {
+    flex: 1;
+    border: none;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    background: transparent;
+    color: #bfd4ee;
+  }
+  .mobile-view-toggle button.is-active { background: #fff; color: var(--navy); }
+
+  .sidebar {
+    width: 100%;
+    overflow: visible;
+    border-right: none;
+    padding: 16px 16px 0;
+    min-height: calc(100vh - 48px);
+  }
+  .sidebar-footer { margin: auto -16px 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); }
+
+  .app[data-mobile-view="edit"] .preview-panel { display: none; }
+  .app[data-mobile-view="preview"] .sidebar { display: none; }
+  .app[data-mobile-view="preview"] .preview-panel {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px;
+    overflow: hidden;
+  }
+  .app[data-mobile-view="preview"] .preview-panel iframe {
+    min-height: 0;
+    transform-origin: top left;
+  }
+
+  /* Tabs: scroll sideways instead of getting cut off; stick under the toggle. */
+  .sidebar-tabs {
+    top: 48px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .sidebar-tabs::-webkit-scrollbar { display: none; }
+  .sidebar-tabs button { flex: none; padding: 12px 10px; font-size: 13px; }
+
+  .sidebar-header h1 { font-size: 20px; }
+  .view-history-link { display: inline-block; margin: 8px 14px 0 0; font-size: 13px; }
+
+  /* Bigger tap targets. */
+  .btn-add { padding: 10px 14px; font-size: 13px; }
+  .btn-add-small { padding: 8px 10px; font-size: 12px; }
+  .btn-add-room { padding: 13px; font-size: 14px; }
+  .btn-remove { font-size: 22px; padding: 4px 8px; }
+  .btn-insert { font-size: 20px; padding: 4px 6px; }
+  .btn-preview, .btn-generate, .sidebar-footer .btn-preview, .sidebar-footer .btn-generate { padding: 13px 8px; font-size: 14px; }
+  .sidebar-footer .btn-save-as-new { padding: 11px; font-size: 14px; }
+  .download-links { flex-wrap: wrap; }
+  .download-links a, .btn-share-pdf { padding: 12px; font-size: 14px; }
+  .room-summary { padding: 13px 12px; font-size: 15px; }
+  .ai-disclosure > summary { padding: 12px 0; font-size: 13px; }
+  .total-only-toggle, .checkbox-label { font-size: 14px; }
+  .checkbox-label input { width: 20px; height: 20px; }
+  label { font-size: 13px; }
+  .panel-header { flex-wrap: wrap; gap: 8px; }
+  .snippet-select { max-width: 100%; padding: 8px; }
+  .scope-toolbar { flex-wrap: wrap; }
+  .scope-toolbar .room-snippet-select { width: 100%; }
+  /* Touch has no hover: keep the per-bullet + / x visible. */
+  .scope-item .btn-insert, .scope-item .btn-remove { opacity: 0.6; }
+  .row { flex-wrap: wrap; }
+  .row label { min-width: 140px; }
+  .payment-term-amount { width: 100px; }
+
+  /* ---- Past Proposals / Clients: tables become stacked cards ---- */
+  .history-page { padding: 16px 12px 32px; }
+  .history-header { flex-wrap: wrap; gap: 12px; }
+  .history-header-actions { width: 100%; }
+  .history-header-actions .btn-new, .history-header-actions .btn-secondary {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .history-table, .history-table tbody, .history-table tr, .history-table td { display: block; }
+  .history-table thead { display: none; }
+  .history-table { background: none; box-shadow: none; overflow: visible; }
+
+  .history-table tbody > tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .history-table td { border: none; padding: 0; font-size: 15px; min-width: 0; }
+  .history-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--lgray);
+    margin-bottom: 3px;
+  }
+
+  /* Proposal card: client across the top, then #/date, total/status,
+     deposit, and the action buttons. "Created" is desktop-only. */
+  .history-table .history-client { grid-column: 1 / -1; order: -2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .history-table .history-client::before { flex-basis: 100%; }
+  .history-client-name { font-size: 17px; font-weight: bold; color: var(--navy); }
+  .history-table .history-total { font-size: 17px; font-weight: bold; color: var(--navy); }
+  .history-table .history-deposit { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; white-space: normal; }
+  .history-table .history-deposit::before { flex-basis: 100%; }
+  .history-table .history-created { display: none; }
+  .history-status-select { width: 100%; padding: 8px; }
+  .history-table .history-files { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+  .history-table .history-files .btn-file { flex: 1; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+  .history-table .history-files .btn-share { flex-basis: 100%; padding: 12px; font-size: 14px; }
+
+  .btn-file { padding: 10px 14px; font-size: 13px; }
+
+  /* Client card: name across the top, contact details full width. */
+  .history-table .client-name { grid-column: 1 / -1; font-size: 17px; font-weight: bold; color: var(--navy); }
+  .history-table td.client-name::before { display: none; }
+  .history-table .client-address,
+  .history-table .client-email { grid-column: 1 / -1; overflow-wrap: anywhere; }
+
+  /* Inline editor rows (deposit, link client, client form, proposal list). */
+  .history-table tbody > tr.deposit-edit-row { display: block; background: var(--notes-bg); padding: 12px; margin-top: -8px; }
+  .deposit-edit-row td { background: none; padding: 0; }
+  .deposit-edit-form { flex-direction: column; align-items: stretch; }
+  .deposit-edit-form input,
+  .deposit-edit-form input[type="number"],
+  .deposit-edit-form input[placeholder] { width: 100%; min-width: 0; padding: 10px; }
+  .client-link-search { min-width: 0; }
+  .client-proposals-list { font-size: 15px; }
+  .client-proposals-list li { margin: 8px 0; }
+  .client-suggest-item { padding: 12px; }
+}

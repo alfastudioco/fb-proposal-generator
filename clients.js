@@ -146,13 +146,17 @@
 
   function renderRow(client) {
     const tr = document.createElement('tr');
-    for (const [key] of FIELDS) {
+    for (const [key, label] of FIELDS) {
       const td = document.createElement('td');
+      td.className = `client-${key}`;
+      td.dataset.label = label.replace('Client name', 'Name');
       td.textContent = client[key] || '—';
       tr.appendChild(td);
     }
 
     const countTd = document.createElement('td');
+    countTd.className = 'client-count';
+    countTd.dataset.label = 'Proposals';
     const count = (proposalsByClient.get(client.id) || []).length;
     if (count) {
       countTd.appendChild(makeButton(`${count} ▾`, () => toggleProposals(client, tr)));
