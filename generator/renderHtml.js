@@ -33,7 +33,6 @@ const NAVY_DARK = `#${rawStyles.NAVY_DARK}`;
 const ORANGE = `#${rawStyles.ORANGE}`;
 const GRAY = `#${rawStyles.GRAY}`;
 const LGRAY = `#${rawStyles.LGRAY}`;
-const NOTES_BG = `#${rawStyles.NOTES_BG}`;
 const BULLET_TEXT_COLOR = `#${rawStyles.BULLET_TEXT_COLOR}`;
 const { FONT, ACCENT_FONT, formatCurrency } = rawStyles;
 
@@ -381,14 +380,17 @@ function renderProposalHtml(data, { editable = false } = {}) {
   .notes-heading { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 7px; margin-bottom: 10px; }
   .notes-text, .notes-block .bullet { font-style: italic; color: ${GRAY}; font-size: 9.5pt; white-space: pre-wrap; }
 
-  .totals-table { margin: 24px 0; }
-  .investment-box { background: ${NAVY_DARK}; color: #fff; padding: 24px; width: 50%; vertical-align: middle; }
-  .investment-box-label { color: #bfd4ee; font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
-  .investment-box-sub { color: #bfd4ee; font-size: 11pt; margin-bottom: 12px; }
-  .investment-box-amount { font-family: ${ACCENT_FONT}, serif; color: #fff; font-size: 34pt; margin-top: 2px; }
-  .investment-box-note { color: #bfd4ee; font-style: italic; font-size: 9pt; margin-top: 10px; white-space: pre-wrap; }
-  .commitment-box { background: ${NOTES_BG}; padding: 24px; width: 50%; vertical-align: middle; }
-  .commitment-label { color: ${NAVY}; font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  /* Open, ruled layout (matches the room banners and generator/totals.js):
+     no filled boxes -- thin navy rule on top, orange rule below, hairline
+     between the total and the payment-terms / commitment column. */
+  .totals-table { margin: 24px 0; border-top: 1pt solid ${NAVY_DARK}; border-bottom: 1.5pt solid ${ORANGE}; }
+  .investment-box { padding: 16px 22px 14px 0; width: 50%; vertical-align: top; }
+  .investment-box-label { color: ${LGRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 6px; }
+  .investment-box-sub { color: ${GRAY}; font-size: 10pt; margin-bottom: 2px; }
+  .investment-box-amount { font-family: ${ACCENT_FONT}, serif; color: ${NAVY_DARK}; font-size: 30pt; margin-top: 4px; }
+  .investment-box-note { color: ${GRAY}; font-style: italic; font-size: 9pt; margin-top: 8px; white-space: pre-wrap; }
+  .commitment-box { padding: 16px 0 14px 22px; width: 50%; vertical-align: top; border-left: 1pt solid #dddddd; }
+  .commitment-label { color: ${LGRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; }
   .commitment-text { font-style: italic; color: ${GRAY}; font-size: 10pt; }
 
   .payment-terms-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 5px; }

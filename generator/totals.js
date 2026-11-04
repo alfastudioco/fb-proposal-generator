@@ -1,31 +1,47 @@
 const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType, TabStopType } = require('docx');
 const {
-  NAVY, NAVY_DARK, GRAY, NOTES_BG, FONT, ACCENT_FONT,
-  COL_WIDTHS, pt, spacingPt, cellBorders, shade, formatCurrency,
+  NAVY_DARK, ORANGE, GRAY, LGRAY, FONT, ACCENT_FONT,
+  COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder, thickBorder, formatCurrency,
 } = require('./styles');
+
+// Open, ruled layout (matches the room banners): no filled boxes -- a thin
+// navy rule on top, the orange rule below, and a hairline between the
+// total and the payment-terms / commitment column.
+const RULES = () => ({ top: thickBorder(NAVY_DARK, 1), bottom: thickBorder(ORANGE, 1.5) });
+const LEFT_MARGINS = { top: 300, bottom: 280, left: 0, right: 400 };
+const RIGHT_MARGINS = { top: 300, bottom: 280, left: 400, right: 0 };
+// Right edge of the payment-terms column's text area, for the amount tab stop.
+const PAYMENT_TAB_POS = COL_WIDTHS.investment[1] - RIGHT_MARGINS.left - 20;
+
+function rightColumnCell(children) {
+  return new TableCell({
+    width: { size: COL_WIDTHS.investment[1], type: WidthType.DXA },
+    verticalAlign: VerticalAlign.TOP,
+    margins: RIGHT_MARGINS,
+    borders: cellBorders({ ...RULES(), left: thinBorder('DDDDDD') }),
+    children,
+  });
+}
+
+function columnLabel(text) {
+  return new Paragraph({
+    spacing: { after: spacingPt(8) },
+    children: [new TextRun({ text, font: FONT, size: pt(8), bold: true, color: LGRAY, characterSpacing: 16 })],
+  });
+}
 
 const COMMITMENT_TEXT =
   'Single point of contact, daily site cleanliness, and transparent communication at every ' +
   'milestone — from first demo to final walkthrough.';
 
 function investmentCell(totalLabel, totalAmount, note) {
-  const children = [
-    new Paragraph({
-      spacing: { after: spacingPt(8) },
-      children: [
-        new TextRun({
-          text: 'TOTAL PROJECT INVESTMENT',
-          font: FONT, size: pt(9), bold: true, color: 'BFD4EE', characterSpacing: 12,
-        }),
-      ],
-    }),
-  ];
+  const children = [columnLabel('TOTAL PROJECT INVESTMENT')];
 
   if (totalLabel) {
     children.push(
       new Paragraph({
-        spacing: { after: spacingPt(12) },
-        children: [new TextRun({ text: totalLabel, font: FONT, size: pt(11), color: 'BFD4EE' })],
+        spacing: { after: spacingPt(4) },
+        children: [new TextRun({ text: totalLabel, font: FONT, size: pt(10), color: GRAY })],
       }),
     );
   }
@@ -33,47 +49,34 @@ function investmentCell(totalLabel, totalAmount, note) {
   children.push(
     new Paragraph({
       spacing: { after: note ? spacingPt(10) : 0 },
-      children: [new TextRun({ text: formatCurrency(totalAmount), font: ACCENT_FONT, size: pt(34), color: 'FFFFFF' })],
+      children: [new TextRun({ text: formatCurrency(totalAmount), font: ACCENT_FONT, size: pt(30), color: NAVY_DARK })],
     }),
   );
 
   if (note) {
     children.push(
       new Paragraph({
-        children: [new TextRun({ text: note, font: FONT, italics: true, size: pt(9), color: 'BFD4EE' })],
+        children: [new TextRun({ text: note, font: FONT, italics: true, size: pt(9), color: GRAY })],
       }),
     );
   }
 
   return new TableCell({
     width: { size: COL_WIDTHS.investment[0], type: WidthType.DXA },
-    shading: shade(NAVY_DARK),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 380, bottom: 380, left: 380, right: 380 },
-    borders: cellBorders(),
+    verticalAlign: VerticalAlign.TOP,
+    margins: LEFT_MARGINS,
+    borders: cellBorders(RULES()),
     children,
   });
 }
 
 function commitmentCell() {
-  return new TableCell({
-    width: { size: COL_WIDTHS.investment[1], type: WidthType.DXA },
-    shading: shade(NOTES_BG),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 380, bottom: 380, left: 380, right: 380 },
-    borders: cellBorders(),
-    children: [
-      new Paragraph({
-        spacing: { after: spacingPt(10) },
-        children: [
-          new TextRun({ text: 'OUR COMMITMENT', font: FONT, size: pt(9), bold: true, color: NAVY, characterSpacing: 12 }),
-        ],
-      }),
-      new Paragraph({
-        children: [new TextRun({ text: COMMITMENT_TEXT, font: FONT, italics: true, size: pt(10), color: GRAY })],
-      }),
-    ],
-  });
+  return rightColumnCell([
+    columnLabel('OUR COMMITMENT'),
+    new Paragraph({
+      children: [new TextRun({ text: COMMITMENT_TEXT, font: FONT, italics: true, size: pt(10), color: GRAY })],
+    }),
+  ]);
 }
 
 function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymentTerms }) {
@@ -96,20 +99,13 @@ function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymen
 function buildPaymentTermsBox(paymentTerms) {
   const { lines, note } = paymentTerms;
 
-  const children = [
-    new Paragraph({
-      spacing: { after: spacingPt(10) },
-      children: [
-        new TextRun({ text: 'PAYMENT TERMS', font: FONT, size: pt(9), bold: true, color: NAVY, characterSpacing: 12 }),
-      ],
-    }),
-  ];
+  const children = [columnLabel('PAYMENT TERMS')];
 
   lines.forEach((line, i) => {
     children.push(
       new Paragraph({
         spacing: { after: i === lines.length - 1 ? 0 : spacingPt(4) },
-        tabStops: [{ type: TabStopType.RIGHT, position: 4200 }],
+        tabStops: [{ type: TabStopType.RIGHT, position: PAYMENT_TAB_POS }],
         children: [
           new TextRun({ text: line.label, font: FONT, size: pt(10), color: GRAY }),
           new TextRun({ text: `\t${formatCurrency(line.amount)}`, font: FONT, size: pt(10), bold: true, color: NAVY_DARK }),
@@ -127,14 +123,7 @@ function buildPaymentTermsBox(paymentTerms) {
     );
   }
 
-  return new TableCell({
-    width: { size: COL_WIDTHS.investment[1], type: WidthType.DXA },
-    shading: shade(NOTES_BG),
-    verticalAlign: VerticalAlign.CENTER,
-    margins: { top: 380, bottom: 380, left: 380, right: 380 },
-    borders: cellBorders(),
-    children,
-  });
+  return rightColumnCell(children);
 }
 
 // Phase 2 — spec §5.4 (addendum/updated proposal line-items + payment
