@@ -890,6 +890,52 @@ button.btn-new { border: none; font-family: inherit; cursor: pointer; }
   border: 1px solid var(--border);
   border-radius: 6px;
 }
+/* Past Proposals status tabs */
+.status-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.status-tabs::-webkit-scrollbar { display: none; }
+.status-tab {
+  flex: none;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--lgray);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.status-tab:hover { color: var(--navy); }
+.status-tab-top { display: inline-flex; align-items: center; gap: 7px; }
+.status-tab-total { font-size: 12px; font-weight: normal; color: var(--gray); }
+.status-tab.is-active .status-tab-total { color: var(--navy); font-weight: bold; }
+.status-tab.is-empty .status-tab-total { color: var(--lgray); }
+.status-tab.is-active { color: var(--navy); border-bottom-color: var(--orange); }
+.status-tab-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: var(--navy-lite);
+  color: var(--navy);
+  font-size: 11px;
+  text-align: center;
+}
+.status-tab.is-active .status-tab-count { background: var(--navy); color: #fff; }
+.status-tab.is-empty .status-tab-count { background: none; color: var(--lgray); }
 .deposit-edit-form input[placeholder="Client name"],
 .deposit-edit-form input[placeholder="Address"] { flex: 1; min-width: 160px; }
 .client-proposals-list {
@@ -1163,6 +1209,11 @@ button.btn-new { border: none; font-family: inherit; cursor: pointer; }
 
   /* Client card: name across the top, contact details full width. */
   .history-table .client-name { grid-column: 1 / -1; font-size: 17px; font-weight: bold; color: var(--navy); }
+  .status-tabs { gap: 0; margin-left: -4px; margin-right: -4px; }
+  .status-tab { padding: 10px 8px; }
+  .status-tab-top { gap: 5px; }
+  .status-tab-count { min-width: 18px; padding: 1px 5px; }
+
   .history-table td.client-name::before { display: none; }
   .history-table .client-address,
   .history-table .client-email { grid-column: 1 / -1; overflow-wrap: anywhere; }

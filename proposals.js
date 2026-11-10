@@ -78,6 +78,7 @@
       try {
         await patchProposal(proposal.id, { status: select.value });
         proposal.status = select.value;
+        render(); // refresh tab counts; the row moves to its new tab
       } catch (err) {
         alert(`Could not update status: ${err.message}`);
         select.value = previous || 'Sent';
@@ -489,24 +490,96 @@
       p.proposal_num, p.status, p.total_label,
     ].filter(Boolean).join(' ').toLowerCase();
     if (text.includes(q)) return true;
-    const digits = q.replace(/D/g, '');
-    return digits.length >= 3 && String(p.client_phone || '').replace(/D/g, '').includes(digits);
+    const digits = q.replace(/\D/g, '');
+    return digits.length >= 3 && String(p.client_phone || '').replace(/\D/g, '').includes(digits);
+  }
+
+  // ---- Status tabs: All + every status in fbpg_statuses (plus any status a
+  // proposal carries that's no longer in that list), each with a count.
+  // Counts follow the search box so they always match what a tab will show.
+  const tabsEl = document.getElementById('statusTabs');
+  const params = new URLSearchParams(window.location.search);
+  let activeStatus = params.get('status') || 'All';
+
+  // $3,600 · $86.9K · $2.1M — short enough to sit under a tab label.
+  function compactCurrency(amount) {
+    const n = Math.round(amount || 0);
+    if (n < 10000) return formatCurrency(n);
+    const short = (value, decimals) => String(parseFloat(value.toFixed(decimals)));
+    if (n < 999500) return `$${short(n / 1000, n < 100000 ? 1 : 0)}K`;
+    return `$${short(n / 1000000, n < 10000000 ? 2 : 1)}M`;
+  }
+
+  function statusOf(p) {
+    return p.status || 'Sent';
+  }
+
+  function renderTabs(searched) {
+    const labels = statusOptions.map((s) => s.label);
+    for (const p of proposals) {
+      if (!labels.includes(statusOf(p))) labels.push(statusOf(p));
+    }
+    if (activeStatus !== 'All' && !labels.includes(activeStatus)) activeStatus = 'All';
+
+    tabsEl.innerHTML = '';
+    for (const label of ['All', ...labels]) {
+      const inTab = label === 'All' ? searched : searched.filter((p) => statusOf(p) === label);
+      const count = inTab.length;
+      const dollars = inTab.reduce((sum, p) => sum + (Number(p.total_amount) || 0), 0);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'status-tab' + (label === activeStatus ? ' is-active' : '') + (count ? '' : ' is-empty');
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', String(label === activeStatus));
+      const name = document.createElement('span');
+      name.textContent = label;
+      const num = document.createElement('span');
+      num.className = 'status-tab-count';
+      num.textContent = count;
+      const top = document.createElement('span');
+      top.className = 'status-tab-top';
+      top.appendChild(name);
+      top.appendChild(num);
+      const money = document.createElement('span');
+      money.className = 'status-tab-total';
+      money.textContent = compactCurrency(dollars);
+      money.title = formatCurrency(dollars);
+      btn.appendChild(top);
+      btn.appendChild(money);
+      btn.addEventListener('click', () => {
+        activeStatus = label;
+        const url = new URL(window.location.href);
+        if (label === 'All') url.searchParams.delete('status');
+        else url.searchParams.set('status', label);
+        history.replaceState(null, '', url);
+        render();
+      });
+      tabsEl.appendChild(btn);
+    }
+    // Phones scroll the tab row sideways; keep the selected tab on screen.
+    const active = tabsEl.querySelector('.status-tab.is-active');
+    if (active && tabsEl.scrollWidth > tabsEl.clientWidth) {
+      tabsEl.scrollLeft = active.offsetLeft - (tabsEl.clientWidth - active.offsetWidth) / 2;
+    }
   }
 
   function render() {
     const raw = filterInput.value.trim();
     const q = raw.toLowerCase();
-    const shown = proposals.filter((p) => matchesFilter(p, q));
+    const searched = proposals.filter((p) => matchesFilter(p, q));
+    renderTabs(searched);
+    const shown = activeStatus === 'All' ? searched : searched.filter((p) => statusOf(p) === activeStatus);
     bodyEl.innerHTML = '';
     for (const proposal of shown) bodyEl.appendChild(renderRow(proposal));
     statusEl.className = 'history-status';
+    const where = activeStatus === 'All' ? '' : ` in ${activeStatus}`;
     if (!proposals.length) statusEl.textContent = 'No proposals generated yet.';
-    else if (!shown.length) statusEl.textContent = `No proposals match "${raw}".`;
-    else statusEl.textContent = q ? `${shown.length} of ${proposals.length} proposals` : '';
+    else if (!shown.length) statusEl.textContent = q ? `No proposals${where} match "${raw}".` : `No proposals${where} yet.`;
+    else statusEl.textContent = q ? `${shown.length} match${shown.length === 1 ? '' : 'es'}${where}` : '';
   }
 
   // The main page's "See all matches" link arrives with ?q=.
-  filterInput.value = new URLSearchParams(window.location.search).get('q') || '';
+  filterInput.value = params.get('q') || '';
   filterInput.addEventListener('input', render);
 
   async function loadProposals() {
