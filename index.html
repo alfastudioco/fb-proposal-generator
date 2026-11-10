@@ -23,6 +23,10 @@
       <p>Proposal Generator</p>
       <a class="view-history-link" href="/proposals.html">View All Proposals &rarr;</a>
       <a class="view-history-link" href="/clients.html">Clients &rarr;</a>
+      <div class="proposal-search">
+        <input type="search" id="proposalSearch" placeholder="Find a proposal — client, address, phone or #" autocomplete="off">
+        <div id="proposalSearchResults" class="client-suggest is-hidden"></div>
+      </div>
       <div id="editingIndicator" class="editing-indicator is-hidden"></div>
     </div>
 
@@ -333,6 +337,7 @@
 
 <script src="/snippets.js"></script>
 <script src="/share.js"></script>
+<script src="/proposal-search.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

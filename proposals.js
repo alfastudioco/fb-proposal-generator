@@ -477,6 +477,38 @@
     }
   }
 
+  const filterInput = document.getElementById('proposalFilter');
+  let proposals = [];
+
+  // Client-side search over everything already loaded: linked client name,
+  // the proposal's own client snapshot, proposal #, status and project label.
+  function matchesFilter(p, q) {
+    if (!q) return true;
+    const text = [
+      p.client && p.client.name, p.client_name, p.client_address, p.client_phone, p.client_email,
+      p.proposal_num, p.status, p.total_label,
+    ].filter(Boolean).join(' ').toLowerCase();
+    if (text.includes(q)) return true;
+    const digits = q.replace(/D/g, '');
+    return digits.length >= 3 && String(p.client_phone || '').replace(/D/g, '').includes(digits);
+  }
+
+  function render() {
+    const raw = filterInput.value.trim();
+    const q = raw.toLowerCase();
+    const shown = proposals.filter((p) => matchesFilter(p, q));
+    bodyEl.innerHTML = '';
+    for (const proposal of shown) bodyEl.appendChild(renderRow(proposal));
+    statusEl.className = 'history-status';
+    if (!proposals.length) statusEl.textContent = 'No proposals generated yet.';
+    else if (!shown.length) statusEl.textContent = `No proposals match "${raw}".`;
+    else statusEl.textContent = q ? `${shown.length} of ${proposals.length} proposals` : '';
+  }
+
+  // The main page's "See all matches" link arrives with ?q=.
+  filterInput.value = new URLSearchParams(window.location.search).get('q') || '';
+  filterInput.addEventListener('input', render);
+
   async function loadProposals() {
     statusEl.textContent = 'Loading…';
     statusEl.className = 'history-status';
@@ -484,16 +516,8 @@
       const res = await fetch('/api/proposals');
       const body = await res.json();
       if (!res.ok) throw new Error(body.details || body.error);
-
-      bodyEl.innerHTML = '';
-      if (!body.proposals.length) {
-        statusEl.textContent = 'No proposals generated yet.';
-        return;
-      }
-      statusEl.textContent = '';
-      for (const proposal of body.proposals) {
-        bodyEl.appendChild(renderRow(proposal));
-      }
+      proposals = body.proposals || [];
+      render();
     } catch (err) {
       statusEl.textContent = `Failed to load proposals: ${err.message}`;
       statusEl.className = 'history-status error';
