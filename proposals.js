@@ -7,8 +7,11 @@
 
   let statusOptions = [];
 
+  // Whole dollars, unless there are cents (a $1,234.50 payment).
   function formatCurrency(amount) {
-    return `$${Math.round(amount || 0).toLocaleString('en-US')}`;
+    const n = Math.round((Number(amount) || 0) * 100) / 100;
+    const cents = Number.isInteger(n) ? 0 : 2;
+    return `$${n.toLocaleString('en-US', { minimumFractionDigits: cents, maximumFractionDigits: cents })}`;
   }
 
   function formatCreatedAt(iso) {
@@ -91,126 +94,338 @@
     return td;
   }
 
-  // ---- Deposit/balance tracking -- summary text + an inline editor row
-  // that expands below the proposal's row on demand.
+  // ---- Payments (fbpg_payments) -- the Payments column shows what's paid
+  // and what's still owed; its button opens an inline panel below the row
+  // to record, fix or delete payments. Balance due is never stored: it's
+  // always the proposal total minus the payments, so re-pricing a proposal
+  // updates it by itself.
 
-  function depositSummaryText(proposal) {
-    const parts = [];
-    if (proposal.deposit_amount != null) parts.push(`Dep ${formatCurrency(proposal.deposit_amount)}`);
-    if (proposal.balance_due != null) parts.push(`Bal ${formatCurrency(proposal.balance_due)}`);
-    return parts.length ? parts.join(' · ') : '—';
+  const PAYMENT_METHODS = ['Check', 'Zelle', 'Card', 'Cash', 'Other'];
+
+  function paymentTotals(proposal) {
+    const payments = proposal.payments || [];
+    const paid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const total = Number(proposal.total_amount) || 0;
+    return { payments, paid, total, balance: Math.round((total - paid) * 100) / 100 };
+  }
+
+  function sortPayments(payments) {
+    return payments.slice().sort((a, b) =>
+      String(a.paid_on).localeCompare(String(b.paid_on)) || String(a.created_at).localeCompare(String(b.created_at)));
+  }
+
+  function todayIso() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function formatPaidOn(iso) {
+    const [y, m, d] = String(iso).split('-').map(Number);
+    if (!y || !m || !d) return String(iso || '');
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  async function paymentRequest(method, query, payload) {
+    const res = await fetch(`/api/proposals?resource=payments${query}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.details || body.error || 'Payment request failed');
+    return body.payments;
   }
 
   function closeOpenDepositEditors() {
     document.querySelectorAll('.deposit-edit-row').forEach((row) => row.remove());
   }
 
-  function toggleDepositEditor(proposal, tr, summaryEl) {
+  // Fills the Payments cell: "$51,000 due · $40,000 paid" + progress bar,
+  // "Paid in full", or "No payments", plus the button that opens the panel.
+  function fillPaymentsCell(td, proposal, tr) {
+    td.innerHTML = '';
+    const { payments, paid, total, balance } = paymentTotals(proposal);
+
+    const summary = document.createElement('div');
+    summary.className = 'payments-cell-summary';
+    if (!payments.length) {
+      const none = document.createElement('span');
+      none.className = 'payments-none';
+      none.textContent = 'No payments';
+      summary.appendChild(none);
+    } else if (balance > 0) {
+      const due = document.createElement('span');
+      due.className = 'payments-due';
+      due.textContent = `${formatCurrency(balance)} due`;
+      const paidEl = document.createElement('span');
+      paidEl.className = 'payments-paid';
+      paidEl.textContent = `${formatCurrency(paid)} paid`;
+      summary.appendChild(due);
+      summary.appendChild(paidEl);
+    } else {
+      const pif = document.createElement('span');
+      pif.className = 'payments-pif';
+      pif.textContent = balance < 0 ? `✓ Paid in full · ${formatCurrency(-balance)} credit` : '✓ Paid in full';
+      summary.appendChild(pif);
+    }
+    if (payments.length) {
+      const bar = document.createElement('div');
+      bar.className = 'payments-bar' + (balance <= 0 ? ' is-done' : '');
+      const fill = document.createElement('i');
+      fill.style.width = `${total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 100}%`;
+      bar.appendChild(fill);
+      summary.appendChild(bar);
+    }
+    td.appendChild(summary);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-file payments-btn';
+    btn.textContent = payments.length ? 'Payments' : '+ Payment';
+    btn.addEventListener('click', () => togglePaymentsPanel(proposal, tr));
+    td.appendChild(btn);
+  }
+
+  function buildPaymentsCell(proposal, tr) {
+    const td = document.createElement('td');
+    td.className = 'history-payments';
+    td.dataset.label = 'Payments';
+    fillPaymentsCell(td, proposal, tr);
+    return td;
+  }
+
+  function togglePaymentsPanel(proposal, tr) {
     const existing = tr.nextElementSibling;
-    if (existing && existing.classList.contains('deposit-edit-row')) {
+    if (existing && existing.classList.contains('payments-row')) {
       existing.remove();
       return;
     }
     closeOpenDepositEditors();
 
-    const editRow = document.createElement('tr');
-    editRow.className = 'deposit-edit-row';
+    // Shares .deposit-edit-row so only one inline editor is open at a time.
+    const panelRow = document.createElement('tr');
+    panelRow.className = 'deposit-edit-row payments-row';
     const td = document.createElement('td');
     td.colSpan = HISTORY_COLUMN_COUNT;
+    const panel = document.createElement('div');
+    panel.className = 'payments-panel';
+    td.appendChild(panel);
+    panelRow.appendChild(td);
+    tr.after(panelRow);
 
-    const form = document.createElement('div');
-    form.className = 'deposit-edit-form';
+    let editingId = null; // payment being fixed, or null when recording a new one
+
+    // ---- Record / edit form (built once, reused for edits)
+    const form = document.createElement('form');
+    form.className = 'payment-form';
+    form.noValidate = true;
 
     const amountInput = document.createElement('input');
     amountInput.type = 'number';
-    amountInput.placeholder = 'Deposit amount';
-    amountInput.value = proposal.deposit_amount ?? '';
+    amountInput.inputMode = 'decimal';
+    amountInput.min = '0';
+    amountInput.step = '0.01';
+    amountInput.placeholder = '$ Amount';
+    amountInput.className = 'payment-amount';
 
     const dateInput = document.createElement('input');
-    dateInput.type = 'text';
-    dateInput.placeholder = 'Deposit date';
-    dateInput.value = proposal.deposit_date || '';
+    dateInput.type = 'date';
+    dateInput.className = 'payment-date';
+    dateInput.value = todayIso();
 
-    const balanceInput = document.createElement('input');
-    balanceInput.type = 'number';
-    balanceInput.placeholder = 'Balance due';
-    balanceInput.value = proposal.balance_due ?? '';
+    const methodWrap = document.createElement('div');
+    methodWrap.className = 'payment-methods';
+    let method = 'Check';
+    const methodBtns = PAYMENT_METHODS.map((m) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'payment-method';
+      b.textContent = m;
+      b.addEventListener('click', () => setMethod(m));
+      methodWrap.appendChild(b);
+      return b;
+    });
+    function setMethod(m) {
+      method = PAYMENT_METHODS.includes(m) ? m : 'Other';
+      methodBtns.forEach((b) => b.classList.toggle('is-active', b.textContent === method));
+    }
+    setMethod('Check');
 
-    const notesInput = document.createElement('input');
-    notesInput.type = 'text';
-    notesInput.placeholder = 'Payment notes';
-    notesInput.value = proposal.payment_notes || '';
+    const noteInput = document.createElement('input');
+    noteInput.type = 'text';
+    noteInput.placeholder = "Note (check #, what it's for)";
+    noteInput.className = 'payment-note';
 
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'btn-file';
-    saveBtn.textContent = 'Save';
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'submit';
+    submitBtn.className = 'btn-record-payment';
 
-    const cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'btn-file';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.addEventListener('click', () => editRow.remove());
+    const cancelEditBtn = document.createElement('button');
+    cancelEditBtn.type = 'button';
+    cancelEditBtn.className = 'btn-file';
+    cancelEditBtn.textContent = 'Cancel edit';
+    cancelEditBtn.addEventListener('click', () => { resetForm(); renderPanel(); });
 
-    const editStatus = document.createElement('span');
-    editStatus.className = 'deposit-edit-status';
+    const formStatus = document.createElement('div');
+    formStatus.className = 'deposit-edit-status payment-form-status';
 
-    saveBtn.addEventListener('click', async () => {
-      saveBtn.disabled = true;
-      editStatus.textContent = 'Saving…';
-      const patch = {
-        depositAmount: amountInput.value.trim() !== '' ? Number(amountInput.value) : null,
-        depositDate: dateInput.value.trim() || null,
-        balanceDue: balanceInput.value.trim() !== '' ? Number(balanceInput.value) : null,
-        paymentNotes: notesInput.value.trim() || null,
-      };
+    form.append(amountInput, dateInput, methodWrap, noteInput, submitBtn, cancelEditBtn, formStatus);
+
+    function resetForm() {
+      editingId = null;
+      amountInput.value = '';
+      dateInput.value = todayIso();
+      noteInput.value = '';
+      setMethod('Check');
+      submitBtn.textContent = '+ Record payment';
+      cancelEditBtn.classList.add('is-hidden');
+      form.classList.remove('is-editing');
+      formStatus.textContent = '';
+    }
+
+    function startEdit(payment) {
+      editingId = payment.id;
+      amountInput.value = payment.amount;
+      dateInput.value = payment.paid_on;
+      noteInput.value = payment.note || '';
+      setMethod(payment.method || 'Other');
+      submitBtn.textContent = 'Save changes';
+      cancelEditBtn.classList.remove('is-hidden');
+      form.classList.add('is-editing');
+      formStatus.textContent = `Editing the ${formatCurrency(payment.amount)} payment from ${formatPaidOn(payment.paid_on)}`;
+      renderPanel();
+      amountInput.focus();
+    }
+
+    function setBusy(busy) {
+      panel.querySelectorAll('button, input').forEach((x) => { x.disabled = busy; });
+    }
+
+    async function apply(action, busyText) {
+      setBusy(true);
+      formStatus.textContent = busyText;
       try {
-        await patchProposal(proposal.id, patch);
-        Object.assign(proposal, {
-          deposit_amount: patch.depositAmount,
-          deposit_date: patch.depositDate,
-          balance_due: patch.balanceDue,
-          payment_notes: patch.paymentNotes,
-        });
-        summaryEl.textContent = depositSummaryText(proposal);
-        editRow.remove();
+        proposal.payments = sortPayments(await action());
+        fillPaymentsCell(tr.querySelector('.history-payments'), proposal, tr);
+        setBusy(false);
+        resetForm();
+        renderPanel();
+        return true;
       } catch (err) {
-        editStatus.textContent = `Failed: ${err.message}`;
-        saveBtn.disabled = false;
+        setBusy(false);
+        formStatus.textContent = `Failed: ${err.message}`;
+        return false;
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const amount = Number(amountInput.value);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        formStatus.textContent = 'Enter the amount paid.';
+        amountInput.focus();
+        return;
+      }
+      if (!dateInput.value) {
+        formStatus.textContent = 'Pick the date it was paid.';
+        dateInput.focus();
+        return;
+      }
+      const payload = { amount, paidOn: dateInput.value, method, note: noteInput.value.trim() };
+      if (editingId) {
+        const id = editingId;
+        apply(() => paymentRequest('PATCH', `&id=${encodeURIComponent(id)}`, payload), 'Saving…');
+      } else {
+        apply(() => paymentRequest('POST', '', { ...payload, proposalId: proposal.id }), 'Recording…');
       }
     });
 
-    form.appendChild(amountInput);
-    form.appendChild(dateInput);
-    form.appendChild(balanceInput);
-    form.appendChild(notesInput);
-    form.appendChild(saveBtn);
-    form.appendChild(cancelBtn);
-    form.appendChild(editStatus);
+    // ---- Panel: totals, notes, payment list, then the form
+    function renderPanel() {
+      const { payments, paid, total, balance } = paymentTotals(proposal);
+      panel.innerHTML = '';
 
-    td.appendChild(form);
-    editRow.appendChild(td);
-    tr.after(editRow);
-  }
+      const sums = document.createElement('div');
+      sums.className = 'payments-totals';
+      const balanceLabel = balance < 0 ? 'Credit' : 'Balance due';
+      for (const [label, value, cls] of [
+        ['Total', total, ''],
+        ['Paid', paid, ''],
+        [balanceLabel, Math.abs(balance), balance > 0 ? ' is-due' : ' is-clear'],
+      ]) {
+        const box = document.createElement('div');
+        box.className = 'payments-total' + cls;
+        const l = document.createElement('div');
+        l.className = 'payments-total-label';
+        l.textContent = label;
+        const v = document.createElement('div');
+        v.className = 'payments-total-value';
+        v.textContent = formatCurrency(value);
+        box.append(l, v);
+        sums.appendChild(box);
+      }
+      panel.appendChild(sums);
 
-  function buildDepositCell(proposal, tr) {
-    const td = document.createElement('td');
-    td.className = 'history-deposit';
-    td.dataset.label = 'Deposit';
+      if (proposal.payment_notes) {
+        const notes = document.createElement('div');
+        notes.className = 'payments-notes';
+        notes.textContent = proposal.payment_notes;
+        panel.appendChild(notes);
+      }
 
-    const summary = document.createElement('span');
-    summary.className = 'deposit-summary';
-    summary.textContent = depositSummaryText(proposal);
-    td.appendChild(summary);
+      if (payments.length) {
+        const list = document.createElement('div');
+        list.className = 'payments-list';
+        for (const p of payments) {
+          const item = document.createElement('div');
+          item.className = 'payment-item' + (p.id === editingId ? ' is-editing' : '');
+          const when = document.createElement('span');
+          when.className = 'payment-item-date';
+          when.textContent = formatPaidOn(p.paid_on);
+          const how = document.createElement('span');
+          how.className = 'payment-item-method';
+          how.textContent = p.method || '—';
+          const note = document.createElement('span');
+          note.className = 'payment-item-note';
+          note.textContent = p.note || '';
+          const amt = document.createElement('span');
+          amt.className = 'payment-item-amount';
+          amt.textContent = formatCurrency(p.amount);
+          const actions = document.createElement('span');
+          actions.className = 'payment-item-actions';
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'link-btn';
+          editBtn.textContent = 'Edit';
+          editBtn.addEventListener('click', () => startEdit(p));
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'link-btn is-danger';
+          delBtn.textContent = 'Delete';
+          delBtn.addEventListener('click', () => {
+            if (!confirm(`Delete the ${formatCurrency(p.amount)} payment from ${formatPaidOn(p.paid_on)}?`)) return;
+            apply(() => paymentRequest('DELETE', `&id=${encodeURIComponent(p.id)}`), 'Deleting…');
+          });
+          actions.append(editBtn, delBtn);
+          item.append(when, how, note, amt, actions);
+          list.appendChild(item);
+        }
+        panel.appendChild(list);
+      }
 
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.className = 'btn-file deposit-edit-btn';
-    editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', () => toggleDepositEditor(proposal, tr, summary));
-    td.appendChild(editBtn);
+      panel.appendChild(form);
 
-    return td;
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'link-btn payments-close';
+      close.textContent = 'Close';
+      close.addEventListener('click', () => panelRow.remove());
+      panel.appendChild(close);
+    }
+
+    resetForm();
+    renderPanel();
+    amountInput.focus();
   }
 
   // ---- Linked client (fbpg_clients) -- shows the linked client's name, or a
@@ -426,7 +641,7 @@
     totalTd.textContent = formatCurrency(proposal.total_amount);
     tr.appendChild(totalTd);
 
-    tr.appendChild(buildDepositCell(proposal, tr));
+    tr.appendChild(buildPaymentsCell(proposal, tr));
 
     const createdTd = document.createElement('td');
     createdTd.className = 'history-created';

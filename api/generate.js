@@ -130,9 +130,8 @@ module.exports = async function handler(req, res) {
       expiration_date: data.expirationDate ?? null,
       terms_and_conditions: data.termsAndConditions ?? null,
       status: data.status || 'Sent',
-      deposit_amount: data.depositAmount ?? null,
-      deposit_date: data.depositDate ?? null,
-      balance_due: data.balanceDue ?? null,
+      // Deposits/balance now live in fbpg_payments, recorded from Past
+      // Proposals; saving a proposal never touches them.
       payment_notes: data.paymentNotes ?? null,
       docx_storage_path: docxPath,
       pdf_storage_path: pdfPath,

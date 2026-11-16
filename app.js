@@ -297,8 +297,36 @@
   // (from a document import or an AI draft) -- this is a "start a new
   // proposal" action, not a merge, so any in-progress edits to the current
   // form are discarded.
+  // Pricing & Status tab: read-only paid/balance line for a saved proposal;
+  // payments themselves are recorded on Past Proposals.
+  function showPaymentsSummary(p) {
+    const box = el('paymentsSummary');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!p) {
+      box.textContent = 'Payments are recorded on Past Proposals once this proposal is saved.';
+      return;
+    }
+    const money = (n) => '$' + Math.round(n || 0).toLocaleString('en-US');
+    const payments = p.payments || [];
+    state.loadedPayments = payments;
+    const paid = payments.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
+    const balance = (Number(p.total_amount) || 0) - paid;
+    const line = document.createElement('div');
+    line.className = 'payments-summary-line';
+    if (!payments.length) line.textContent = 'No payments recorded yet.';
+    else if (balance > 0) line.textContent = `${money(paid)} paid · ${money(balance)} balance due`;
+    else line.textContent = balance < 0 ? `Paid in full · ${money(-balance)} credit` : 'Paid in full';
+    box.appendChild(line);
+    const link = document.createElement('a');
+    link.href = `/proposals.html?q=${encodeURIComponent(p.proposal_num || '')}`;
+    link.textContent = 'Record payments on Past Proposals →';
+    box.appendChild(link);
+  }
+
   function loadImportedProposal(data) {
     state.editingId = null;
+    showPaymentsSummary(null);
     setClientLink(null);
     state.paymentTermLines = [];
 
@@ -1502,9 +1530,6 @@
       termsAndConditions: el('termsAndConditions').value.trim() || undefined,
       paymentTerms: collectPaymentTerms(forPreview),
       status: el('proposalStatus').value || 'Sent',
-      depositAmount: el('depositAmount').value.trim() !== '' ? Number(el('depositAmount').value) : undefined,
-      depositDate: el('depositDate').value.trim() || undefined,
-      balanceDue: el('balanceDue').value.trim() !== '' ? Number(el('balanceDue').value) : undefined,
       paymentNotes: el('paymentNotes').value.trim() || undefined,
     };
   }
@@ -1539,9 +1564,7 @@
       el('expirationDate').value = p.expiration_date || '';
       el('termsAndConditions').value = p.terms_and_conditions || '';
       refreshStatusSelectOptions(p.status || 'Sent');
-      el('depositAmount').value = p.deposit_amount ?? '';
-      el('depositDate').value = p.deposit_date || '';
-      el('balanceDue').value = p.balance_due ?? '';
+      showPaymentsSummary(p);
       el('paymentNotes').value = p.payment_notes || '';
 
       state.editingId = id;
@@ -1770,11 +1793,8 @@
     const data = collectProposalData();
     if (asNewVersion) {
       // A new row, not an update -- and an alternate version hasn't been
-      // paid on, so the original's deposit/balance tracking doesn't carry over.
+      // paid on, so the original's payments and payment notes don't carry over.
       delete data.id;
-      delete data.depositAmount;
-      delete data.depositDate;
-      delete data.balanceDue;
       delete data.paymentNotes;
     }
     const generateBtn = el('generateBtn');
@@ -1802,7 +1822,11 @@
       // The server saved/linked the client -- keep the link so the next
       // Generate updates that same record.
       if (body.clientId) setClientLink(body.clientId, data.client.name);
-      if (!asNewVersion && state.editingId) showEditingState(state.editingId, data.proposalNum);
+      if (!asNewVersion && state.editingId) {
+        showEditingState(state.editingId, data.proposalNum);
+        // The price may have changed -- balance due follows the new total.
+        showPaymentsSummary({ proposal_num: data.proposalNum, total_amount: data.totalAmount, payments: state.loadedPayments || [] });
+      }
       if (asNewVersion && !body.id) {
         // Files were made but the history row wasn't -- don't leave the form
         // pointed at the original with the new version's number in it.
@@ -1814,9 +1838,7 @@
         generateStatus.textContent = `Saved as new version #${data.proposalNum}.`;
         showEditingState(body.id, data.proposalNum);
         history.replaceState(null, '', `?edit=${encodeURIComponent(body.id)}`);
-        el('depositAmount').value = '';
-        el('depositDate').value = '';
-        el('balanceDue').value = '';
+        showPaymentsSummary({ id: body.id, proposal_num: data.proposalNum, total_amount: data.totalAmount, payments: [] });
         el('paymentNotes').value = '';
       }
       downloadLinks.innerHTML = '';

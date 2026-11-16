@@ -98,3 +98,34 @@ alter table fbpg_clients enable row level security;
 alter table fbpg_proposals enable row level security;
 alter table fbpg_note_snippets enable row level security;
 alter table fbpg_statuses enable row level security;
+
+-- Phase 6: payment log. One row per payment received (check, Zelle, ...),
+-- replacing the single deposit_amount/deposit_date/balance_due fields above.
+-- Balance due is never stored: it's always fbpg_proposals.total_amount minus
+-- the sum of that proposal's payments, so editing a proposal's price
+-- updates the balance by itself. One row per payment so receipts can be
+-- generated from them later.
+create table if not exists fbpg_payments (
+  id uuid primary key default uuid_generate_v4(),
+  proposal_id uuid not null references fbpg_proposals(id) on delete cascade,
+  amount numeric not null check (amount > 0),
+  paid_on date not null,
+  method text,
+  note text,
+  created_at timestamptz not null default now()
+);
+create index if not exists fbpg_payments_proposal_id_idx on fbpg_payments(proposal_id);
+alter table fbpg_payments enable row level security;
+
+-- One-time carry-over: each proposal's old deposit becomes its first
+-- payment. The old deposit_date was free text and never filled in, so the
+-- payment is dated the day the proposal was created (editable afterward).
+-- Skips proposals that already have payments, so re-running is safe.
+insert into fbpg_payments (proposal_id, amount, paid_on, note)
+select p.id, p.deposit_amount, p.created_at::date, 'Deposit'
+from fbpg_proposals p
+where p.deposit_amount is not null
+  and p.deposit_amount > 0
+  and not exists (select 1 from fbpg_payments x where x.proposal_id = p.id);
+-- The old deposit_amount/deposit_date/balance_due columns are left in place
+-- (unused from here on) rather than dropped, so nothing is lost.
