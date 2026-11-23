@@ -371,6 +371,39 @@ button {
 }
 .room-price { width: 100%; }
 .room-price-label-input { width: 100%; text-transform: uppercase; }
+.room-price.is-computed { background: var(--notes-bg); color: var(--navy); font-weight: bold; }
+
+/* Room line items (app.js renderRooms): item | qty | price | ×, with the
+   optional detail on a smaller second row. */
+.line-items-editor { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.line-items-hint { font-size: 11px; color: var(--lgray); }
+.line-items-head,
+.line-item {
+  display: grid;
+  grid-template-columns: 1fr 52px 88px 22px;
+  gap: 4px;
+  align-items: center;
+}
+.line-items-head { font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: var(--lgray); margin: 6px 0 4px; }
+.line-items-head.is-hidden { display: none; }
+.line-item { margin-bottom: 8px; }
+.line-item input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.line-item .li-text { grid-column: 1; grid-row: 1; }
+.line-item .li-qty-input { grid-column: 2; grid-row: 1; }
+.line-item .li-price-input { grid-column: 3; grid-row: 1; text-align: right; }
+.line-item .li-remove-btn { grid-column: 4; grid-row: 1; }
+.line-item .li-detail-input { grid-column: 1 / 4; grid-row: 2; font-size: 11px; padding: 4px 7px; color: var(--gray); background: #fafbfc; }
+.line-items-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.line-items-footer .btn-add-small { margin-left: 0; }
+.line-items-total { font-size: 12px; font-weight: bold; color: var(--navy); }
 
 .ai-disclosure {
   margin: 4px 0 12px;
@@ -1215,6 +1248,10 @@ button.btn-new { border: none; font-family: inherit; cursor: pointer; }
   /* Bigger tap targets. */
   .btn-add { padding: 10px 14px; font-size: 13px; }
   .btn-add-small { padding: 8px 10px; font-size: 12px; }
+  /* Line items: bigger boxes for thumbs; 16px stops iOS zooming in. */
+  .line-items-head, .line-item { grid-template-columns: 1fr 58px 96px 30px; gap: 6px; }
+  .line-item input, .line-item .li-detail-input { font-size: 16px; padding: 9px 8px; }
+  .line-item { margin-bottom: 12px; }
   .btn-add-room { padding: 13px; font-size: 14px; }
   .btn-remove { font-size: 22px; padding: 4px 8px; }
   .btn-insert { font-size: 20px; padding: 4px 6px; }

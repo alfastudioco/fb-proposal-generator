@@ -17,6 +17,29 @@ function validateScopeItems(items, label, errors) {
   });
 }
 
+function validateLineItems(items, label, errors) {
+  if (items === undefined) return;
+  if (!Array.isArray(items)) {
+    errors.push(`${label} must be an array if provided`);
+    return;
+  }
+  items.forEach((item, i) => {
+    const where = `${label}[${i}]`;
+    if (!item || typeof item !== 'object') {
+      errors.push(`${where} must be an object`);
+      return;
+    }
+    if (!isNonEmptyString(item.text)) errors.push(`Line item ${i + 1} (${label}) needs a description`);
+    if (typeof item.price !== 'number' || !Number.isFinite(item.price)) errors.push(`${where}.price must be a number`);
+    if (item.qty !== undefined && item.qty !== null && (typeof item.qty !== 'number' || !(item.qty > 0))) {
+      errors.push(`${where}.qty must be a number above 0 if provided`);
+    }
+    if (item.detail !== undefined && item.detail !== null && typeof item.detail !== 'string') {
+      errors.push(`${where}.detail must be a string if provided`);
+    }
+  });
+}
+
 function validatePaymentTerms(paymentTerms, errors) {
   if (paymentTerms === undefined) return;
   if (!paymentTerms || typeof paymentTerms !== 'object') {
@@ -70,6 +93,7 @@ function validateProposalData(body) {
       }
       validateScopeItems(section.leftScope || [], `sections[${i}].leftScope`, errors);
       validateScopeItems(section.rightScope || [], `sections[${i}].rightScope`, errors);
+      validateLineItems(section.lineItems, `sections[${i}].lineItems`, errors);
     });
   }
 

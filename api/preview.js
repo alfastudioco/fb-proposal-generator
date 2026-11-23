@@ -1,4 +1,5 @@
 const { renderProposalHtml } = require('../generator/renderHtml');
+const { applyLineItemTotals } = require('../generator/lineItems');
 
 // Renders the same HTML template used for PDF generation, without touching
 // Chromium/Storage/Supabase, so there is exactly one HTML template in the
@@ -28,6 +29,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    applyLineItemTotals(req.body);
     return res.status(200).json({ html: renderProposalHtml(req.body, { editable: true }) });
   } catch (err) {
     console.error('Preview rendering failed:', err);

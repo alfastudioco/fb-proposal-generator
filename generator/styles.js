@@ -90,9 +90,12 @@ function shade(fillHex) {
   return { type: ShadingType.CLEAR, fill: fillHex, color: 'auto' };
 }
 
+// Whole dollars, unless the amount has cents (small purchased line items
+// like $4.97) -- otherwise itemized lines wouldn't visibly add up.
 function formatCurrency(amount) {
-  const n = Math.round(Number(amount) || 0);
-  return `$${n.toLocaleString('en-US')}`;
+  const n = Math.round((Number(amount) || 0) * 100) / 100;
+  const digits = Number.isInteger(n) ? 0 : 2;
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 // Bullet numbering config (spec §6) — consumed once by

@@ -277,8 +277,33 @@
           </div>
         </div>
       </div>
+
+      <div class="line-items-editor">
+        <div class="scope-toolbar">
+          <span class="scope-toolbar-title">Line Items</span>
+          <span class="line-items-hint">Optional. The room price adds up from these.</span>
+        </div>
+        <div class="line-items-head is-hidden">
+          <span>Item</span><span>Qty</span><span>Price</span><span></span>
+        </div>
+        <div class="line-items-list"></div>
+        <div class="line-items-footer">
+          <button type="button" class="btn-add-small add-line-item">+ Line item</button>
+          <span class="line-items-total"></span>
+        </div>
+      </div>
     </div>
   </details>
+</template>
+
+<template id="lineItemTemplate">
+  <div class="line-item">
+    <input type="text" class="li-text" placeholder="Item (e.g. Master Closet)">
+    <input type="text" class="li-detail-input" placeholder="Detail (optional)">
+    <input type="number" class="li-qty-input" placeholder="1" min="0" step="any" inputmode="decimal" title="Quantity (leave blank for 1)">
+    <input type="number" class="li-price-input" placeholder="$ Price" step="0.01" inputmode="decimal" title="Price (each, if you set a quantity)">
+    <button type="button" class="btn-remove li-remove-btn" title="Remove line">×</button>
+  </div>
 </template>
 
 <template id="scopeItemTemplate">

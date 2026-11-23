@@ -24,6 +24,7 @@ const path = require('path');
 const rawStyles = require('./styles');
 const { CONTACT } = require('./footer');
 const { COMMITMENT_TEXT } = require('./totals');
+const { lineQty, lineTotal, hasLineItems } = require('./lineItems');
 
 // styles.js exports bare hex (no leading '#') for docx's color options;
 // CSS needs the '#'. Convert once here rather than sprinkling '#' + X
@@ -95,6 +96,45 @@ function renderScopeColumn(items = [], editable, sectionIndex, side) {
   return itemsHtml + addHtml;
 }
 
+function formatQty(q) {
+  return Number.isInteger(q) ? String(q) : String(Math.round(q * 100) / 100);
+}
+
+// Priced lines under a room's banner (generator/lineItems.js): description
+// with an optional gray detail, an optional "3 ×" quantity column (only
+// when some line has a quantity), and the line total on the right. Matches
+// buildLineItems in sections.js. hidePrice ("show total only") drops the
+// prices, same as the banner.
+function renderLineItems(section, isHero, editable, sectionIndex) {
+  const items = section.lineItems || [];
+  if (!items.length) {
+    return editable ? `<div class="line-items-add${isHero ? ' is-hero' : ''}">${addControl('add-line-item', { section: sectionIndex }, 'Add line item')}</div>` : '';
+  }
+  const showQty = items.some((item) => lineQty(item) !== 1);
+  const showPrice = !section.hidePrice;
+  const rows = items.map((item, j) => {
+    const field = (key) => `sections.${sectionIndex}.lineItems.${j}.${key}`;
+    const qty = lineQty(item);
+    const qtyHtml = showQty ? `<td class="li-qty">${qty !== 1 ? `${esc(formatQty(qty))} ×` : ''}</td>` : '';
+    const textHtml = editable ? `<span${editableAttrs(field('text'))}>${esc(item.text || '')}</span>` : esc(item.text || '');
+    const detailHtml = editable
+      ? `<span class="li-detail"${editableAttrs(field('detail'))}>${esc(item.detail || '')}</span>`
+      : (item.detail ? `<span class="li-detail">${esc(item.detail)}</span>` : '');
+    const eachHtml = showPrice && qty !== 1 ? `<span class="li-detail">${esc(formatCurrency(item.price))} each</span>` : '';
+    let priceHtml = '';
+    if (showPrice) {
+      // A qty line's right-hand figure is computed (qty x each), so only
+      // single-unit lines are directly editable in the preview.
+      const amount = esc(formatCurrency(lineTotal(item)));
+      priceHtml = `<td class="li-price">${editable && qty === 1 ? `<span${editableAttrs(field('price'))}>${amount}</span>` : amount}</td>`;
+    }
+    const removeHtml = editable ? `<td class="li-remove">${removeControl('remove-line-item', { section: sectionIndex, index: j })}</td>` : '';
+    return `<tr>${qtyHtml}<td class="li-desc">${textHtml}${detailHtml}${eachHtml}</td>${priceHtml}${removeHtml}</tr>`;
+  }).join('');
+  const addHtml = editable ? addControl('add-line-item', { section: sectionIndex }, 'Add line item') : '';
+  return `<table class="line-items${isHero ? ' is-hero' : ''}">${rows}</table>${addHtml ? `<div class="line-items-add${isHero ? ' is-hero' : ''}">${addHtml}</div>` : ''}`;
+}
+
 function renderSection(section, isHero, editable, sectionIndex) {
   const priceLabel = section.priceLabel || 'INVESTMENT';
   const titleField = `sections.${sectionIndex}.title`;
@@ -111,7 +151,8 @@ function renderSection(section, isHero, editable, sectionIndex) {
   const priceLabelHtml = editable
     ? `<span${editableAttrs(priceLabelField)}>${esc(priceLabel)}</span>`
     : esc(priceLabel);
-  const priceAmountHtml = editable
+  // With line items the room price is their sum -- not typed directly.
+  const priceAmountHtml = editable && !hasLineItems(section)
     ? `<span${editableAttrs(priceField)}>${esc(formatCurrency(section.price))}</span>`
     : esc(formatCurrency(section.price));
 
@@ -135,17 +176,27 @@ function renderSection(section, isHero, editable, sectionIndex) {
     ? `<div class="fbpg-room-controls">${removeControl('remove-room', { section: sectionIndex }, 'Remove Room')}</div>`
     : '';
 
-  return `
-    <div class="fbpg-room">
-      ${roomControlsHtml}
-      ${bannerHtml}
-      <table class="scope">
+  // A line-items-only room (e.g. Cabinetry & Millwork split by area) has no
+  // bullets -- skip the empty scope block in the delivered document so the
+  // lines sit right under the banner. The editable preview keeps it for
+  // its "+ Add bullet" controls.
+  const hasScope = (section.leftScope || []).length || (section.rightScope || []).length;
+  const showScope = editable || hasScope || !hasLineItems(section);
+  const scopeHtml = showScope ? `
+      <table class="scope${hasLineItems(section) ? ' has-line-items' : ''}">
         <tr>
           <td class="scope-col">${renderScopeColumn(section.leftScope, editable, sectionIndex, 'left')}</td>
           <td class="divider"></td>
           <td class="scope-col">${renderScopeColumn(section.rightScope, editable, sectionIndex, 'right')}</td>
         </tr>
-      </table>
+      </table>` : '';
+
+  return `
+    <div class="fbpg-room">
+      ${roomControlsHtml}
+      ${bannerHtml}
+      ${scopeHtml}
+      ${renderLineItems(section, isHero, editable, sectionIndex)}
     </div>
   `;
 }
@@ -371,6 +422,23 @@ function renderProposalHtml(data, { editable = false } = {}) {
   .trade-label:first-child { margin-top: 0; }
   .bullet { display: flex; gap: 6px; font-size: 9pt; color: ${BULLET_TEXT_COLOR}; margin-bottom: 7px; }
   .dash { color: ${NAVY}; font-weight: bold; }
+
+  /* Priced line items under a banner, indented to line up with the room
+     title (the number column is 42px). Hairline between lines, line total
+     right-aligned. Matches buildLineItems in sections.js. */
+  .scope.has-line-items { margin-bottom: 6px; }
+  .line-items { margin: 10px 0 24px 42px; width: calc(100% - 42px); }
+  .line-items.is-hero { margin-left: 0; width: 100%; }
+  .line-items tr { break-inside: avoid; page-break-inside: avoid; }
+  .line-items td { padding: 7px 0; border-bottom: 1px solid #ececec; font-size: 10pt; vertical-align: baseline; }
+  .line-items tr:last-child td { border-bottom: none; }
+  .li-desc { color: ${BULLET_TEXT_COLOR}; }
+  .li-detail { color: ${LGRAY}; font-size: 8.5pt; margin-left: 8px; }
+  .li-qty { color: ${LGRAY}; font-size: 9pt; width: 44px; white-space: nowrap; }
+  .li-price { text-align: right; white-space: nowrap; color: ${NAVY_DARK}; font-weight: bold; width: 1%; padding-left: 20px; }
+  .li-remove { width: 1%; white-space: nowrap; }
+  .line-items-add { margin: 0 0 20px 42px; }
+  .line-items-add.is-hero { margin-left: 0; }
 
   .section-label { color: ${NAVY}; font-size: 10.5pt; font-weight: bold; letter-spacing: 0.5px; border-bottom: 1pt solid ${LGRAY}; padding-bottom: 5px; margin: 20px 0 10px; }
 

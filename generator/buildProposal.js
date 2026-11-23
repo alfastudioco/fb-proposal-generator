@@ -9,6 +9,7 @@ const {
   buildMetaBar,
   buildSectionBanner,
   buildTwoColumnScope,
+  buildLineItems,
   buildClientSuppliedItems,
   buildNotesBox,
   buildTermsBox,
@@ -92,8 +93,22 @@ async function buildProposal(proposalData) {
         hero: isSingleSection,
       }),
     );
-    children.push(spacer(160));
-    children.push(buildTwoColumnScope({ leftScope: section.leftScope || [], rightScope: section.rightScope || [] }));
+    const hasScope = (section.leftScope || []).length || (section.rightScope || []).length;
+    const lineItemsTable = buildLineItems({
+      lineItems: section.lineItems,
+      hidePrice: !!section.hidePrice,
+      hero: isSingleSection,
+    });
+    // A line-items-only room skips the empty two-column scope block, same
+    // as the PDF (renderHtml.js).
+    if (hasScope || !lineItemsTable) {
+      children.push(spacer(160));
+      children.push(buildTwoColumnScope({ leftScope: section.leftScope || [], rightScope: section.rightScope || [] }));
+    }
+    if (lineItemsTable) {
+      children.push(spacer(hasScope ? 80 : 120));
+      children.push(lineItemsTable);
+    }
     children.push(spacer(280));
   }
 

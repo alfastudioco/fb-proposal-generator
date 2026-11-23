@@ -1,6 +1,7 @@
 const { getAnthropicClient } = require('../lib/anthropic');
 const { buildSnippetContext, getComparablePricing } = require('../lib/proposalContext');
 const { buildSectionsProperty } = require('../lib/proposalDraftTool');
+const { applyLineItemTotals } = require('../generator/lineItems');
 
 const MODEL = 'claude-sonnet-5';
 
@@ -50,6 +51,20 @@ const SCOPE_ITEM_SCHEMA = {
 // leftScope/rightScope split, so this keeps both arrays separate end to end
 // -- re-flattening and re-splitting on every edit would silently reshuffle
 // column placement for rooms the instruction never mentioned.
+// Priced lines inside a room (generator/lineItems.js). price is per unit;
+// the room's price is always recomputed as the sum of qty x price.
+const LINE_ITEM_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    text: { type: 'string' },
+    detail: { type: 'string' },
+    qty: { type: 'number' },
+    price: { type: 'number' },
+  },
+  required: ['text', 'price'],
+};
+
 const SECTION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -60,6 +75,12 @@ const SECTION_SCHEMA = {
     priceLabel: { type: 'string' },
     leftScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
     rightScope: { type: 'array', items: SCOPE_ITEM_SCHEMA },
+    lineItems: {
+      type: 'array',
+      items: LINE_ITEM_SCHEMA,
+      description: 'Priced lines in this room (e.g. each cabinetry area, or each small item purchased). When present, ' +
+        'the room price is set automatically to the sum of qty x price -- keep every existing line unless told otherwise.',
+    },
   },
   required: ['title', 'price', 'leftScope', 'rightScope'],
 };
@@ -149,6 +170,16 @@ function editableSection(s) {
     priceLabel: s.priceLabel || '',
     leftScope: s.leftScope || [],
     rightScope: s.rightScope || [],
+    ...(Array.isArray(s.lineItems) && s.lineItems.length
+      ? {
+        lineItems: s.lineItems.map((it) => ({
+          text: it.text || '',
+          detail: it.detail || undefined,
+          qty: Number(it.qty) > 0 ? Number(it.qty) : undefined,
+          price: Number(it.price) || 0,
+        })),
+      }
+      : {}),
   };
 }
 
@@ -172,6 +203,8 @@ function applyEditPatch(proposal, patch) {
   changes.filter((c) => c.op === 'add' && c.section)
     .forEach((c) => sections.push(editableSection(c.section)));
   if (hideAll) sections.forEach((s) => { s.hidePrice = true; });
+  // Rooms with line items: price follows the lines, whatever the model sent.
+  applyLineItemTotals({ sections });
 
   const fields = patch.fieldChanges || {};
   const pick = (key, fallback) => (Object.prototype.hasOwnProperty.call(fields, key) ? fields[key] : fallback);
@@ -263,7 +296,8 @@ async function handleEdit(req, res) {
   const prompt = `You are editing an existing residential remodeling proposal for FB Construction. The contractor has \
 described a change they want made. Record ONLY that change -- do not return rooms or fields the instruction doesn't \
 affect. When you update a room, keep its untouched scope items (and their left/right column placement) exactly as \
-they are in the input.
+they are in the input, and keep its untouched lineItems exactly as they are. A room with lineItems has its price \
+computed from them (sum of qty x price), so to change that room's price, change or add lines rather than the price.
 
 EXAMPLE SCOPE LIBRARY (real language from past proposals, for voice/style reference, in case the instruction asks for \
 new scope language):

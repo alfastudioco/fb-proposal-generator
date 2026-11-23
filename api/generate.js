@@ -1,6 +1,7 @@
 const { buildProposal } = require('../generator/buildProposal');
 const { renderProposalHtml } = require('../generator/renderHtml');
 const { validateProposalData } = require('../generator/validate');
+const { applyLineItemTotals } = require('../generator/lineItems');
 const { getSupabaseClient } = require('../lib/supabase');
 const { saveClientForProposal } = require('../lib/clientMatching');
 
@@ -51,6 +52,9 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  // Rooms with line items: price = sum of the lines (and the grand total
+  // follows), so what's saved, the banner and the itemized list always agree.
+  applyLineItemTotals(req.body);
   const { valid, errors } = validateProposalData(req.body);
   if (!valid) return res.status(400).json({ error: 'Invalid proposal data', details: errors });
 

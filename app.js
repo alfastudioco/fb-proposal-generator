@@ -25,6 +25,7 @@
   const clientSuppliedList = el('clientSuppliedList');
   const roomCardTemplate = el('roomCardTemplate');
   const scopeItemTemplate = el('scopeItemTemplate');
+  const lineItemTemplate = el('lineItemTemplate');
   const clientSuppliedItemTemplate = el('clientSuppliedItemTemplate');
   const paymentTermLineTemplate = el('paymentTermLineTemplate');
   const paymentTermsList = el('paymentTermsList');
@@ -712,6 +713,9 @@
         priceLabel: s.priceLabel || '',
         leftScope: (s.leftScope || []).map((it) => ({ type: it.type, text: it.text })),
         rightScope: (s.rightScope || []).map((it) => ({ type: it.type, text: it.text })),
+        lineItems: (s.lineItems || []).map((it) => ({
+          text: it.text || '', detail: it.detail || '', qty: Number(it.qty) || 1, price: Number(it.price) || 0,
+        })),
       })),
       notes: (data.notes || '').trim(),
       termsAndConditions: (data.termsAndConditions || '').trim(),
@@ -768,6 +772,14 @@
       const newBullets = [...(newSection.leftScope || []), ...(newSection.rightScope || [])].map((it) => it.text);
       newBullets.filter((t) => !oldBullets.includes(t)).forEach((t) => changes.push(`+ ${newSection.title}: "${t}"`));
       oldBullets.filter((t) => !newBullets.includes(t)).forEach((t) => changes.push(`- ${newSection.title}: "${t}"`));
+      const lineKey = (it) => `${it.text}|${lineQtyOf(it)}|${Number(it.price) || 0}`;
+      const lineLabel = (it) => `${lineQtyOf(it) !== 1 ? `${lineQtyOf(it)} × ` : ''}${it.text} ${formatCurrency(lineTotalOf(it))}`;
+      const oldLines = oldSection.lineItems || [];
+      const newLines = newSection.lineItems || [];
+      const oldKeys = oldLines.map(lineKey);
+      const newKeys = newLines.map(lineKey);
+      newLines.filter((it) => !oldKeys.includes(lineKey(it))).forEach((it) => changes.push(`+ ${newSection.title} line: ${lineLabel(it)}`));
+      oldLines.filter((it) => !newKeys.includes(lineKey(it))).forEach((it) => changes.push(`- ${newSection.title} line: ${lineLabel(it)}`));
     });
 
     const oldTotalOnly = sectionsShowTotalOnly(oldData.sections);
@@ -814,6 +826,7 @@
       scopeStatus: null,
       leftScope: (s.leftScope || []).map((it) => ({ ...it })),
       rightScope: (s.rightScope || []).map((it) => ({ ...it })),
+      lineItems: copyLineItems(s.lineItems),
     }));
     setShowTotalOnly(sectionsShowTotalOnly(newData.sections));
     state.clientSupplied = Array.isArray(newData.clientSupplied) ? [...newData.clientSupplied] : [];
@@ -941,11 +954,71 @@
 
   // ---- Rooms & Scope --------------------------------------------------------
 
+  // ---- Line items: priced lines inside a room (generator/lineItems.js) -----
+  // { text, detail, qty, price } -- price is per unit, the line total is
+  // qty x price (blank qty = 1). A room with any lines takes its price from
+  // their sum; the server enforces the same rule.
+
+  function lineQtyOf(item) {
+    const q = Number(item.qty);
+    return Number.isFinite(q) && q > 0 ? q : 1;
+  }
+
+  function lineTotalOf(item) {
+    return Math.round(lineQtyOf(item) * (Number(item.price) || 0) * 100) / 100;
+  }
+
+  function copyLineItems(items) {
+    return (items || []).map((it) => ({
+      text: it.text || '',
+      detail: it.detail || '',
+      qty: Number(it.qty) > 0 ? Number(it.qty) : '',
+      price: Number(it.price) || 0,
+    }));
+  }
+
+  // Sets section.price from its lines; returns true if the room has lines.
+  function syncLineItemPrice(section) {
+    if (!section.lineItems || !section.lineItems.length) return false;
+    section.price = Math.round(section.lineItems.reduce((sum, it) => sum + lineTotalOf(it), 0) * 100) / 100;
+    return true;
+  }
+
+  function addLineItem(sectionId, focus) {
+    const section = state.sections.find((s) => s.id === sectionId);
+    if (!section) return;
+    section.lineItems = section.lineItems || [];
+    // The first line starts with the room's current price, so switching a
+    // priced room to lines doesn't drop its total to $0 -- split it from there.
+    const startPrice = section.lineItems.length ? 0 : (Number(section.price) || 0);
+    section.lineItems.push({ text: '', detail: '', qty: '', price: startPrice });
+    openRoomIds.add(sectionId);
+    renderRooms();
+    recalcTotals();
+    if (focus) {
+      const inputs = roomsList.querySelectorAll(`.room-card[data-section-id="${sectionId}"] .line-item .li-text`);
+      if (inputs.length) inputs[inputs.length - 1].focus();
+    }
+  }
+
+  function removeLineItem(sectionId, index) {
+    const section = state.sections.find((s) => s.id === sectionId);
+    if (!section || !section.lineItems) return;
+    const removed = section.lineItems.splice(index, 1)[0];
+    // Removing the last line hands the price back to the Price box, minus
+    // that line (so it isn't left showing a total for a line that's gone).
+    if (!syncLineItemPrice(section) && removed) {
+      section.price = Math.max(0, Math.round(((Number(section.price) || 0) - lineTotalOf(removed)) * 100) / 100);
+    }
+    renderRooms();
+    recalcTotals();
+  }
+
   function addRoom() {
     const id = nextSectionId();
     state.sections.push({
       id, title: '', subtitle: '', price: 0, priceLabel: '', description: '', scopeStatus: null,
-      leftScope: [], rightScope: [],
+      leftScope: [], rightScope: [], lineItems: [],
     });
     openRoomIds.add(id);
     renderRooms();
@@ -1057,7 +1130,10 @@
         summaryTitle.textContent = section.title.trim() || 'Untitled room';
         summaryTitle.classList.toggle('is-empty', !section.title.trim());
         const bullets = countScopeBullets(section);
-        summaryMeta.textContent = `${bullets} item${bullets === 1 ? '' : 's'}`;
+        const lines = (section.lineItems || []).length;
+        summaryMeta.textContent = lines
+          ? `${lines} line${lines === 1 ? '' : 's'}${bullets ? ` · ${bullets} item${bullets === 1 ? '' : 's'}` : ''}`
+          : `${bullets} item${bullets === 1 ? '' : 's'}`;
         summaryPrice.textContent = formatCurrency(Number(section.price) || 0);
       };
       updateSummary();
@@ -1081,6 +1157,12 @@
 
       const priceInput = card.querySelector('.room-price');
       priceInput.value = section.price || '';
+      // With line items the price is their sum -- shown, not typed.
+      const priceFromLines = syncLineItemPrice(section);
+      if (priceFromLines) priceInput.value = section.price;
+      priceInput.readOnly = priceFromLines;
+      priceInput.classList.toggle('is-computed', priceFromLines);
+      priceInput.title = priceFromLines ? 'Adds up from the line items below' : '';
       priceInput.addEventListener('input', () => {
         section.price = Number(priceInput.value) || 0;
         updateSummary();
@@ -1163,6 +1245,58 @@
           });
         });
       }
+
+      // ---- Line items
+      const lineList = card.querySelector('.line-items-list');
+      const lineHead = card.querySelector('.line-items-head');
+      const lineTotalEl = card.querySelector('.line-items-total');
+      const lineItems = section.lineItems || (section.lineItems = []);
+      const refreshLineTotal = () => {
+        syncLineItemPrice(section);
+        lineTotalEl.textContent = lineItems.length ? `Room total ${formatCurrency(section.price)}` : '';
+        if (lineItems.length) priceInput.value = section.price;
+        updateSummary();
+        recalcTotals();
+      };
+      lineHead.classList.toggle('is-hidden', !lineItems.length);
+      lineItems.forEach((item, index) => {
+        const frag = lineItemTemplate.content.cloneNode(true);
+        const textInput = frag.querySelector('.li-text');
+        const detailInput = frag.querySelector('.li-detail-input');
+        const qtyInput = frag.querySelector('.li-qty-input');
+        const priceEl = frag.querySelector('.li-price-input');
+        textInput.value = item.text || '';
+        detailInput.value = item.detail || '';
+        qtyInput.value = item.qty || '';
+        priceEl.value = item.price || '';
+        textInput.addEventListener('input', () => { item.text = textInput.value; });
+        detailInput.addEventListener('input', () => { item.detail = detailInput.value; });
+        qtyInput.addEventListener('input', () => {
+          item.qty = Number(qtyInput.value) > 0 ? Number(qtyInput.value) : '';
+          refreshLineTotal();
+        });
+        priceEl.addEventListener('input', () => {
+          item.price = Number(priceEl.value) || 0;
+          refreshLineTotal();
+        });
+        // Enter on the last line's price (or item) starts the next line --
+        // quick for a long list of small purchased items.
+        [textInput, detailInput, qtyInput, priceEl].forEach((input) => {
+          input.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || e.isComposing) return;
+            e.preventDefault();
+            if (index === lineItems.length - 1) addLineItem(section.id, true);
+            else {
+              const next = lineList.querySelectorAll('.li-text')[index + 1];
+              if (next) next.focus();
+            }
+          });
+        });
+        frag.querySelector('.li-remove-btn').addEventListener('click', () => removeLineItem(section.id, index));
+        lineList.appendChild(frag);
+      });
+      card.querySelector('.add-line-item').addEventListener('click', () => addLineItem(section.id, true));
+      lineTotalEl.textContent = lineItems.length ? `Room total ${formatCurrency(section.price)}` : '';
 
       roomsList.appendChild(cardEl);
       if (cardEl.open) cardEl.querySelectorAll('.scope-item-text').forEach(autosizeTextarea);
@@ -1482,8 +1616,11 @@
 
   // ---- Totals ---------------------------------------------------------------
 
+  // Whole dollars unless there are cents (small purchased line items).
   function formatCurrency(amount) {
-    return `$${Math.round(amount || 0).toLocaleString('en-US')}`;
+    const n = Math.round((Number(amount) || 0) * 100) / 100;
+    const digits = Number.isInteger(n) ? 0 : 2;
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
   }
 
   function recalcTotals() {
@@ -1520,6 +1657,7 @@
         hidePrice: state.showTotalOnly ? true : undefined,
         leftScope: forPreview ? s.leftScope.map((it) => ({ ...it })) : s.leftScope.filter((it) => it.text.trim()),
         rightScope: forPreview ? s.rightScope.map((it) => ({ ...it })) : s.rightScope.filter((it) => it.text.trim()),
+        lineItems: collectLineItems(s, forPreview),
       })),
       clientSupplied: forPreview ? [...state.clientSupplied] : state.clientSupplied.filter((t) => t.trim()),
       notes: el('notes').value.trim(),
@@ -1532,6 +1670,20 @@
       status: el('proposalStatus').value || 'Sent',
       paymentNotes: el('paymentNotes').value.trim() || undefined,
     };
+  }
+
+  // Blank lines (no description and no price) are dropped on save; the
+  // preview keeps them so a just-added line has somewhere to type.
+  function collectLineItems(section, forPreview) {
+    const lines = (section.lineItems || [])
+      .filter((it) => forPreview || (it.text || '').trim() || Number(it.price))
+      .map((it) => ({
+        text: (it.text || '').trim(),
+        detail: (it.detail || '').trim() || undefined,
+        qty: Number(it.qty) > 0 ? Number(it.qty) : undefined,
+        price: Number(it.price) || 0,
+      }));
+    return lines.length ? lines : undefined;
   }
 
   function collectPaymentTerms(forPreview = false) {
@@ -1580,6 +1732,7 @@
         scopeStatus: null,
         leftScope: (s.leftScope || []).map((it) => ({ ...it })),
         rightScope: (s.rightScope || []).map((it) => ({ ...it })),
+        lineItems: copyLineItems(s.lineItems),
       }));
       setShowTotalOnly(sectionsShowTotalOnly(p.sections));
 
@@ -1658,6 +1811,18 @@
       if (item) { item.text = value; renderRooms(); }
       return;
     }
+    if ((m = field.match(/^sections\.(\d+)\.lineItems\.(\d+)\.(text|detail|price)$/))) {
+      const section = state.sections[Number(m[1])];
+      const item = section && section.lineItems && section.lineItems[Number(m[2])];
+      if (item) {
+        if (m[3] === 'price') item.price = parseCurrencyInput(value);
+        else item[m[3]] = value;
+        renderRooms();
+        recalcTotals();
+        if (m[3] === 'price') schedulePreviewRefresh(); // the banner total changed
+      }
+      return;
+    }
     if ((m = field.match(/^clientSupplied\.(\d+)$/))) {
       const i = Number(m[1]);
       if (state.clientSupplied[i] !== undefined) { state.clientSupplied[i] = value; renderClientSupplied(); }
@@ -1697,6 +1862,16 @@
       case 'remove-item': {
         const section = state.sections[payload.section];
         if (section) removeScopeItem(section.id, payload.side, payload.index);
+        break;
+      }
+      case 'add-line-item': {
+        const section = state.sections[payload.section];
+        if (section) addLineItem(section.id, false);
+        break;
+      }
+      case 'remove-line-item': {
+        const section = state.sections[payload.section];
+        if (section) removeLineItem(section.id, payload.index);
         break;
       }
       case 'add-client-supplied':
@@ -1791,6 +1966,13 @@
       el('proposalNum').value = nextVersionNum(state.savedProposalNum);
     }
     const data = collectProposalData();
+    const unnamedLine = data.sections.find((s) => (s.lineItems || []).some((it) => !it.text));
+    if (unnamedLine) {
+      generateStatus.textContent = `"${unnamedLine.title || `Room ${unnamedLine.num}`}" has a priced line item with no description — fill it in or remove it.`;
+      generateStatus.className = 'generate-status error';
+      if (asNewVersion) el('proposalNum').value = state.savedProposalNum;
+      return;
+    }
     if (asNewVersion) {
       // A new row, not an update -- and an alternate version hasn't been
       // paid on, so the original's payments and payment notes don't carry over.

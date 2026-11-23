@@ -7,6 +7,7 @@ const {
   FONT, ACCENT_FONT, COL_WIDTHS, FULL_WIDTH_DXA,
   pt, spacingPt, cellBorders, thinBorder, thickBorder, shade, formatCurrency,
 } = require('./styles');
+const { lineQty, lineTotal } = require('./lineItems');
 
 // ---- 4.1 Header --------------------------------------------------------
 
@@ -255,6 +256,76 @@ function buildTwoColumnScope({ leftScope, rightScope }) {
   });
 }
 
+// ---- 4.4b Priced line items -------------------------------------------------
+//
+// Lines under a room banner (generator/lineItems.js): description with an
+// optional gray detail, optional "3 ×" quantity column, line total on the
+// right; hairline between lines. Indented to line up with the banner title
+// (the number column's width) except on single-section (hero) proposals.
+// Matches renderLineItems in renderHtml.js.
+
+function lineCell(width, children, { last, align } = {}) {
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: cellBorders(last ? {} : { bottom: thinBorder('ECECEC') }),
+    margins: { top: 90, bottom: 90, left: 0, right: 0 },
+    children: [new Paragraph({ alignment: align, children })],
+  });
+}
+
+function formatQty(q) {
+  return Number.isInteger(q) ? String(q) : String(Math.round(q * 100) / 100);
+}
+
+function buildLineItems({ lineItems, hidePrice, hero }) {
+  const items = lineItems || [];
+  if (!items.length) return null;
+  const showQty = items.some((item) => lineQty(item) !== 1);
+  const showPrice = !hidePrice;
+  const wIndent = hero ? 0 : COL_WIDTHS.banner[0];
+  const wQty = showQty ? 640 : 0;
+  const wPrice = showPrice ? 1800 : 0;
+  const wDesc = FULL_WIDTH_DXA - wIndent - wQty - wPrice;
+  const widths = [wIndent, wQty, wDesc, wPrice].filter(Boolean);
+
+  const rows = items.map((item, j) => {
+    const last = j === items.length - 1;
+    const qty = lineQty(item);
+    const cells = [];
+    if (wIndent) {
+      cells.push(new TableCell({
+        width: { size: wIndent, type: WidthType.DXA },
+        borders: cellBorders(),
+        children: [new Paragraph({ children: [] })],
+      }));
+    }
+    if (showQty) {
+      cells.push(lineCell(wQty, qty !== 1
+        ? [new TextRun({ text: `${formatQty(qty)} ×`, font: FONT, size: pt(9), color: LGRAY })]
+        : [], { last }));
+    }
+    const descRuns = [new TextRun({ text: item.text || '', font: FONT, size: pt(10), color: BULLET_TEXT_COLOR })];
+    if (item.detail) descRuns.push(new TextRun({ text: `   ${item.detail}`, font: FONT, size: pt(8.5), color: LGRAY }));
+    if (showPrice && qty !== 1) {
+      descRuns.push(new TextRun({ text: `   ${formatCurrency(item.price)} each`, font: FONT, size: pt(8.5), color: LGRAY }));
+    }
+    cells.push(lineCell(wDesc, descRuns, { last }));
+    if (showPrice) {
+      cells.push(lineCell(wPrice, [
+        new TextRun({ text: formatCurrency(lineTotal(item)), font: FONT, size: pt(10), bold: true, color: NAVY_DARK }),
+      ], { last, align: AlignmentType.RIGHT }));
+    }
+    return new TableRow({ cantSplit: true, children: cells });
+  });
+
+  return new Table({
+    width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    columnWidths: widths,
+    rows,
+  });
+}
+
 function buildSectionLabel(text) {
   return new Paragraph({
     spacing: { before: spacingPt(8), after: spacingPt(4) },
@@ -334,6 +405,7 @@ module.exports = {
   buildMetaBar,
   buildSectionBanner,
   buildTwoColumnScope,
+  buildLineItems,
   renderScopeItems,
   buildSectionLabel,
   buildClientSuppliedItems,
