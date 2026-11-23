@@ -124,6 +124,7 @@ async function buildProposal(proposalData) {
       totalAmount: data.totalAmount,
       note: data.investmentNote,
       paymentTerms: data.paymentTerms,
+      payments: data.payments,
     }),
   );
   children.push(spacer(280));

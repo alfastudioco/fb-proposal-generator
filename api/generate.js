@@ -45,12 +45,118 @@ async function renderPdf(proposalData) {
   }
 }
 
+// Recorded payments (fbpg_payments) print on the proposal under the total
+// (generator/paymentSummary.js). Always read from the database, never
+// trusted from the request. A lookup failure is logged and the files are
+// made without the payment lines rather than failing the whole save.
+async function loadPayments(supabase, proposalId) {
+  if (!proposalId) return [];
+  const { data, error } = await supabase
+    .from('fbpg_payments')
+    .select('amount, paid_on, method, created_at')
+    .eq('proposal_id', proposalId)
+    .order('paid_on', { ascending: true });
+  if (error) {
+    console.error('payment lookup failed (non-fatal):', error);
+    return [];
+  }
+  return data || [];
+}
+
+// A saved fbpg_proposals row back into the proposal data model the
+// renderers take -- the inverse of the `row` built in handler() below.
+function rowToProposalData(row) {
+  return {
+    id: row.id,
+    proposalNum: row.proposal_num,
+    date: row.date,
+    clientId: row.client_id || undefined,
+    client: {
+      name: row.client_name,
+      address: row.client_address || '',
+      phone: row.client_phone || '',
+      email: row.client_email || '',
+    },
+    sections: row.sections || [],
+    totalAmount: Number(row.total_amount) || 0,
+    totalLabel: row.total_label || '',
+    notes: row.notes || '',
+    clientSupplied: row.client_supplied || [],
+    investmentNote: row.investment_note || undefined,
+    paymentTerms: row.payment_terms || undefined,
+    expirationDate: row.expiration_date || undefined,
+    termsAndConditions: row.terms_and_conditions || undefined,
+    status: row.status || 'Sent',
+    paymentNotes: row.payment_notes || undefined,
+  };
+}
+
+async function uploadFiles(supabase, proposalNum, docxBuffer, pdfBuffer) {
+  const slug = `${proposalNum}-${Date.now()}`;
+  const docxPath = `${slug}/proposal.docx`;
+  const pdfPath = `${slug}/proposal.pdf`;
+  const [docxUpload, pdfUpload] = await Promise.all([
+    supabase.storage.from('proposals').upload(docxPath, docxBuffer, {
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }),
+    supabase.storage.from('proposals').upload(pdfPath, pdfBuffer, { contentType: 'application/pdf' }),
+  ]);
+  if (docxUpload.error) throw docxUpload.error;
+  if (pdfUpload.error) throw pdfUpload.error;
+  return { docxPath, pdfPath };
+}
+
+async function removeFiles(supabase, paths) {
+  const oldPaths = [paths && paths.docx_storage_path, paths && paths.pdf_storage_path].filter(Boolean);
+  if (!oldPaths.length) return;
+  const { error } = await supabase.storage.from('proposals').remove(oldPaths);
+  if (error) console.error('old file cleanup failed (non-fatal):', error);
+}
+
+// POST ?regenerate=<id>: remakes a saved proposal's Word/PDF from what's
+// stored (plus its current payments) without changing anything else on
+// the row -- called by Past Proposals after a payment is recorded, edited
+// or deleted, so the files always show the current balance. Lives here
+// (not api/proposals.js) because it needs this function's Chromium memory
+// and time limits (vercel.json).
+async function handleRegenerate(req, res, id) {
+  try {
+    const supabase = getSupabaseClient();
+    const { data: row, error } = await supabase.from('fbpg_proposals').select('*').eq('id', id).single();
+    if (error) throw error;
+    const data = rowToProposalData(row);
+    applyLineItemTotals(data);
+    const { valid, errors } = validateProposalData(data);
+    if (!valid) return res.status(400).json({ error: 'Saved proposal is not valid', details: errors });
+    data.payments = await loadPayments(supabase, id);
+
+    const [docxBuffer, pdfBuffer] = await Promise.all([buildProposal(data), renderPdf(data)]);
+    const { docxPath, pdfPath } = await uploadFiles(supabase, data.proposalNum, docxBuffer, pdfBuffer);
+    const { error: updateError } = await supabase
+      .from('fbpg_proposals')
+      .update({ docx_storage_path: docxPath, pdf_storage_path: pdfPath })
+      .eq('id', id);
+    if (updateError) {
+      await removeFiles(supabase, { docx_storage_path: docxPath, pdf_storage_path: pdfPath });
+      throw updateError;
+    }
+    await removeFiles(supabase, row);
+    return res.status(200).json({ ok: true, id });
+  } catch (err) {
+    console.error('Regenerate failed:', err);
+    return res.status(500).json({ error: 'Could not update the proposal files', details: err.message });
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const regenerateId = req.query && req.query.regenerate ? String(req.query.regenerate) : '';
+  if (regenerateId) return handleRegenerate(req, res, regenerateId);
 
   // Rooms with line items: price = sum of the lines (and the grand total
   // follows), so what's saved, the banner and the itemized list always agree.
@@ -59,6 +165,16 @@ module.exports = async function handler(req, res) {
   if (!valid) return res.status(400).json({ error: 'Invalid proposal data', details: errors });
 
   const data = req.body;
+  // Payments come from the database only (an existing proposal's), never
+  // from the request body.
+  delete data.payments;
+  if (data.id) {
+    try {
+      data.payments = await loadPayments(getSupabaseClient(), data.id);
+    } catch (err) {
+      console.error('payment lookup failed (non-fatal):', err);
+    }
+  }
 
   let docxBuffer;
   let pdfBuffer;
@@ -68,10 +184,6 @@ module.exports = async function handler(req, res) {
     console.error('Proposal rendering failed:', err);
     return res.status(500).json({ error: 'Proposal generation failed', details: err.message });
   }
-
-  const slug = `${data.proposalNum}-${Date.now()}`;
-  const docxPath = `${slug}/proposal.docx`;
-  const pdfPath = `${slug}/proposal.pdf`;
 
   try {
     const supabase = getSupabaseClient();
@@ -90,14 +202,7 @@ module.exports = async function handler(req, res) {
       previousPaths = existing;
     }
 
-    const [docxUpload, pdfUpload] = await Promise.all([
-      supabase.storage.from('proposals').upload(docxPath, docxBuffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      }),
-      supabase.storage.from('proposals').upload(pdfPath, pdfBuffer, { contentType: 'application/pdf' }),
-    ]);
-    if (docxUpload.error) throw docxUpload.error;
-    if (pdfUpload.error) throw pdfUpload.error;
+    const { docxPath, pdfPath } = await uploadFiles(supabase, data.proposalNum, docxBuffer, pdfBuffer);
 
     const [docxSigned, pdfSigned] = await Promise.all([
       supabase.storage.from('proposals').createSignedUrl(docxPath, SIGNED_URL_TTL_SECONDS),
@@ -150,13 +255,7 @@ module.exports = async function handler(req, res) {
 
     // Only clean up the old files once the new ones are uploaded and the
     // row points at them -- best-effort, must not affect the response.
-    if (!dbError && previousPaths) {
-      const oldPaths = [previousPaths.docx_storage_path, previousPaths.pdf_storage_path].filter(Boolean);
-      if (oldPaths.length) {
-        const { error: removeError } = await supabase.storage.from('proposals').remove(oldPaths);
-        if (removeError) console.error('old file cleanup failed (non-fatal):', removeError);
-      }
-    }
+    if (!dbError && previousPaths) await removeFiles(supabase, previousPaths);
 
     return res.status(200).json({
       docxUrl: docxSigned.data.signedUrl,

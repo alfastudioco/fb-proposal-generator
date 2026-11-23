@@ -184,6 +184,67 @@
     btn.textContent = payments.length ? 'Payments' : '+ Payment';
     btn.addEventListener('click', () => togglePaymentsPanel(proposal, tr));
     td.appendChild(btn);
+
+    const filesStatus = document.createElement('div');
+    filesStatus.className = 'payments-files-status';
+    filesStatus.dataset.proposalId = proposal.id;
+    paintFilesStatus(filesStatus, filesStatusById.get(proposal.id));
+    td.appendChild(filesStatus);
+  }
+
+  // ---- Keep the PDF/Word current with the payments ------------------------
+  // After any payment change, the proposal's files are remade server-side
+  // (POST /api/generate?regenerate=<id>) so the copy you download or share
+  // shows the current Paid / Balance Due lines. One run at a time per
+  // proposal; changes made during a run trigger one more run afterwards, so
+  // the last file made always includes every payment.
+
+  const filesStatusById = new Map(); // id -> { text, kind }
+  const regenRuns = new Map(); // id -> { running, again }
+
+  function paintFilesStatus(el, status) {
+    el.textContent = status ? status.text : '';
+    el.className = `payments-files-status${status && status.kind ? ` is-${status.kind}` : ''}`;
+  }
+
+  function setFilesStatus(id, text, kind) {
+    const status = text ? { text, kind } : null;
+    if (status) filesStatusById.set(id, status); else filesStatusById.delete(id);
+    document.querySelectorAll('.payments-files-status').forEach((el) => {
+      if (el.dataset.proposalId === id) paintFilesStatus(el, status);
+    });
+  }
+
+  async function regenerateFiles(id) {
+    const run = regenRuns.get(id) || { running: false, again: false };
+    regenRuns.set(id, run);
+    if (run.running) {
+      run.again = true;
+      return;
+    }
+    run.running = true;
+    try {
+      do {
+        run.again = false;
+        setFilesStatus(id, 'Updating PDF & Word…', 'busy');
+        const res = await fetch(`/api/generate?regenerate=${encodeURIComponent(id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.details || body.error || `HTTP ${res.status}`);
+      } while (run.again);
+      setFilesStatus(id, 'PDF & Word updated ✓', 'ok');
+      setTimeout(() => {
+        const current = filesStatusById.get(id);
+        if (current && current.kind === 'ok') setFilesStatus(id, '');
+      }, 6000);
+    } catch (err) {
+      setFilesStatus(id, `PDF not updated: ${err.message}`, 'error');
+    } finally {
+      run.running = false;
+    }
   }
 
   function buildPaymentsCell(proposal, tr) {
@@ -306,6 +367,7 @@
       formStatus.textContent = busyText;
       try {
         proposal.payments = sortPayments(await action());
+        regenerateFiles(proposal.id); // background; status shows in the Payments cell
         fillPaymentsCell(tr.querySelector('.history-payments'), proposal, tr);
         setBusy(false);
         resetForm();

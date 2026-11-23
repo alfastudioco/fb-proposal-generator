@@ -1918,6 +1918,9 @@
 
   async function previewProposal() {
     const data = collectProposalData({ forPreview: true });
+    // A saved proposal's recorded payments print under the total (the saved
+    // PDF gets them server-side); show them here too so the preview matches.
+    if (state.editingId && state.loadedPayments && state.loadedPayments.length) data.payments = state.loadedPayments;
     if (!data.sections.length) {
       previewFrame.srcdoc = '<p style="font-family:Arial;color:#888;padding:24px;">Add at least one room to see a preview.</p>';
       return;

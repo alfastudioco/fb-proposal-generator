@@ -25,6 +25,7 @@ const rawStyles = require('./styles');
 const { CONTACT } = require('./footer');
 const { COMMITMENT_TEXT } = require('./totals');
 const { lineQty, lineTotal, hasLineItems } = require('./lineItems');
+const { buildPaymentSummary } = require('./paymentSummary');
 
 // styles.js exports bare hex (no leading '#') for docx's color options;
 // CSS needs the '#'. Convert once here rather than sprinkling '#' + X
@@ -263,6 +264,24 @@ function renderTerms(termsText, editable) {
   return renderLabeledTextBlock('Terms & Conditions', termsText, 'termsAndConditions', editable, 'terms-box');
 }
 
+// Recorded payments under the total (generator/paymentSummary.js); nothing
+// at all when there are none. Read-only even in the editable preview --
+// payments are recorded on Past Proposals. Matches paymentSummaryParagraphs
+// in totals.js.
+function renderPaymentSummary(payments, totalAmount) {
+  const summary = buildPaymentSummary(payments, totalAmount);
+  if (!summary) return '';
+  const lines = summary.lines
+    .map((l) => `<div class="paid-line"><span>${esc(l.label)}</span><b>−${esc(formatCurrency(l.amount))}</b></div>`)
+    .join('');
+  const balance = summary.showBalanceAmount ? `<b>${esc(formatCurrency(summary.balance))}</b>` : '';
+  return `
+        <div class="paid-summary">
+          ${lines}
+          <div class="paid-balance${summary.showBalanceAmount ? '' : ' is-paid'}"><span>${esc(summary.balanceLabel)}</span>${balance}</div>
+        </div>`;
+}
+
 function renderPaymentTerms(paymentTerms, editable) {
   const { lines, note } = paymentTerms;
   const linesHtml = lines
@@ -358,7 +377,7 @@ function renderEditableStyles() {
 function renderProposalHtml(data, { editable = false } = {}) {
   const {
     client, sections = [], clientSupplied = [], notes = '', totalLabel = '', totalAmount, investmentNote,
-    proposalNum, date, updated, paymentTerms, expirationDate, termsAndConditions,
+    proposalNum, date, updated, paymentTerms, expirationDate, termsAndConditions, payments,
   } = data;
 
   return `<!doctype html>
@@ -457,6 +476,14 @@ function renderProposalHtml(data, { editable = false } = {}) {
   .investment-box-sub { color: ${GRAY}; font-size: 10pt; margin-bottom: 2px; }
   .investment-box-amount { font-family: ${ACCENT_FONT}, serif; color: ${NAVY_DARK}; font-size: 30pt; margin-top: 4px; }
   .investment-box-note { color: ${GRAY}; font-style: italic; font-size: 9pt; margin-top: 8px; white-space: pre-wrap; }
+  .paid-summary { margin-top: 12px; border-top: 1pt solid #e4e4e4; padding-top: 8px; }
+  .paid-line { display: flex; justify-content: space-between; font-size: 10pt; margin-bottom: 4px; }
+  .paid-line span { color: ${GRAY}; }
+  .paid-line b { color: ${NAVY_DARK}; }
+  .paid-balance { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; padding-top: 6px; border-top: 1pt solid #e4e4e4; }
+  .paid-balance span { color: ${LGRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase; }
+  .paid-balance b { font-family: ${ACCENT_FONT}, serif; color: ${ORANGE}; font-size: 18pt; font-weight: normal; }
+  .paid-balance.is-paid span { color: #2e7d4f; font-size: 9pt; }
   .commitment-box { padding: 16px 0 14px 22px; width: 50%; vertical-align: top; border-left: 1pt solid #dddddd; }
   .commitment-label { color: ${LGRAY}; font-size: 8pt; font-weight: bold; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px; }
   .commitment-text { font-style: italic; color: ${GRAY}; font-size: 10pt; }
@@ -534,6 +561,7 @@ function renderProposalHtml(data, { editable = false } = {}) {
           ? `<div class="investment-box-sub"${editableAttrs('totalLabel')}>${esc(totalLabel)}</div>`
           : (totalLabel ? `<div class="investment-box-sub">${esc(totalLabel)}</div>` : '')}
         <div class="investment-box-amount">${esc(formatCurrency(totalAmount))}</div>
+        ${renderPaymentSummary(payments, totalAmount)}
         ${editable
           ? `<div class="investment-box-note"${editableAttrs('investmentNote', true)}>${esc(investmentNote || '')}</div>`
           : (investmentNote ? `<div class="investment-box-note">${esc(investmentNote)}</div>` : '')}

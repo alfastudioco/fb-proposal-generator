@@ -1,4 +1,5 @@
-const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType, TabStopType } = require('docx');
+const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, VerticalAlign, AlignmentType, TabStopType, BorderStyle } = require('docx');
+const { buildPaymentSummary } = require('./paymentSummary');
 const {
   NAVY_DARK, ORANGE, GRAY, LGRAY, FONT, ACCENT_FONT,
   COL_WIDTHS, pt, spacingPt, cellBorders, thinBorder, thickBorder, formatCurrency,
@@ -34,7 +35,46 @@ const COMMITMENT_TEXT =
   'Single point of contact, daily site cleanliness, and transparent communication at every ' +
   'milestone — from first demo to final walkthrough.';
 
-function investmentCell(totalLabel, totalAmount, note) {
+// Right edge of the investment column's text area, for the payment amounts.
+const PAID_TAB_POS = COL_WIDTHS.investment[0] - LEFT_MARGINS.right - 20;
+const PAID_RULE = () => ({ top: { style: BorderStyle.SINGLE, size: 4, color: 'E4E4E4', space: 6 } });
+
+// Recorded payments under the total (generator/paymentSummary.js): "Paid
+// <date> · <method>  −$X" lines, then Balance Due. Matches
+// renderPaymentSummary in renderHtml.js.
+function paymentSummaryParagraphs(payments, totalAmount) {
+  const summary = buildPaymentSummary(payments, totalAmount);
+  if (!summary) return [];
+  const tabs = [{ type: TabStopType.RIGHT, position: PAID_TAB_POS }];
+  const paras = summary.lines.map((l, i) => new Paragraph({
+    spacing: { before: i === 0 ? spacingPt(12) : 0, after: spacingPt(4) },
+    border: i === 0 ? PAID_RULE() : undefined,
+    tabStops: tabs,
+    children: [
+      new TextRun({ text: l.label, font: FONT, size: pt(10), color: GRAY }),
+      new TextRun({ text: `\t−${formatCurrency(l.amount)}`, font: FONT, size: pt(10), bold: true, color: NAVY_DARK }),
+    ],
+  }));
+  const balanceRuns = [
+    new TextRun({
+      text: summary.balanceLabel.toUpperCase(),
+      font: FONT, size: pt(summary.showBalanceAmount ? 8 : 9), bold: true,
+      color: summary.showBalanceAmount ? LGRAY : '2E7D4F', characterSpacing: 16,
+    }),
+  ];
+  if (summary.showBalanceAmount) {
+    balanceRuns.push(new TextRun({ text: `\t${formatCurrency(summary.balance)}`, font: ACCENT_FONT, size: pt(18), color: ORANGE }));
+  }
+  paras.push(new Paragraph({
+    spacing: { before: spacingPt(6) },
+    border: PAID_RULE(),
+    tabStops: tabs,
+    children: balanceRuns,
+  }));
+  return paras;
+}
+
+function investmentCell(totalLabel, totalAmount, note, payments) {
   const children = [columnLabel('TOTAL PROJECT INVESTMENT')];
 
   if (totalLabel) {
@@ -52,6 +92,7 @@ function investmentCell(totalLabel, totalAmount, note) {
       children: [new TextRun({ text: formatCurrency(totalAmount), font: ACCENT_FONT, size: pt(30), color: NAVY_DARK })],
     }),
   );
+  children.push(...paymentSummaryParagraphs(payments, totalAmount));
 
   if (note) {
     children.push(
@@ -79,7 +120,7 @@ function commitmentCell() {
   ]);
 }
 
-function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymentTerms }) {
+function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymentTerms, payments }) {
   const rightCell = paymentTerms ? buildPaymentTermsBox(paymentTerms) : commitmentCell();
   return new Table({
     width: { size: COL_WIDTHS.investment[0] + COL_WIDTHS.investment[1], type: WidthType.DXA },
@@ -87,7 +128,7 @@ function buildInvestmentAndCommitmentBox({ totalLabel, totalAmount, note, paymen
     rows: [
       new TableRow({
         cantSplit: true,
-        children: [investmentCell(totalLabel, totalAmount, note), rightCell],
+        children: [investmentCell(totalLabel, totalAmount, note, payments), rightCell],
       }),
     ],
   });

@@ -1384,3 +1384,9 @@ button.btn-new { border: none; font-family: inherit; cursor: pointer; }
 }
 .payments-summary-line { font-weight: bold; color: var(--navy); margin-bottom: 4px; }
 .payments-summary a { color: var(--orange); font-weight: bold; text-decoration: none; }
+
+/* Past Proposals: "Updating PDF & Word…" note under the Payments cell */
+.payments-files-status { font-size: 11px; color: var(--lgray); white-space: normal; }
+.payments-files-status:empty { display: none; }
+.payments-files-status.is-ok { color: #2e7d4f; }
+.payments-files-status.is-error { color: #b3261e; }
